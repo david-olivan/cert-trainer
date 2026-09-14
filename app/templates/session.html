@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Tanda — Entrenador AIB-C01{% endblock %}
+{% block content %}
+  <div id="app"><p class="loading">Cargando…</p></div>
+{% endblock %}
+{% block scripts %}
+<script>
+  window.APP_URLS = {
+    start: "{{ url_for('api.start') }}",
+    answer: "{{ url_for('api.answer') }}",
+    next: "{{ url_for('api.next_question') }}",
+    finish: "{{ url_for('api.finish') }}",
+    home: "{{ url_for('practice.home') }}"
+  };
+</script>
+<script src="{{ url_for('static', filename='js/session.js') }}"></script>
+{% endblock %}

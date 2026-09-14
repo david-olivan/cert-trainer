@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Preguntas — Entrenador AIB-C01{% endblock %}
+{% block content %}
+  <h1>Preguntas</h1>
+  <p class="sub">{{ total }} preguntas activas en el banco</p>
+
+  <h2>Importar</h2>
+  <p style="font-size:12.5px;color:var(--muted)">
+    Pega aquí el bloque de preguntas generado por la skill <code>preguntas-aib-c01</code>.
+    Primero se muestra una vista previa; nada se inserta sin confirmar.
+  </p>
+  <textarea id="raw" style="width:100%;height:140px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;padding:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)"
+    placeholder='[ { "id": "d2-13", "dom": 2, ... } ]'></textarea>
+  <div class="acts">
+    <button class="btn" id="preview-btn">Vista previa</button>
+  </div>
+
+  <div id="preview"></div>
+
+  <h2>Exportar</h2>
+  <p style="font-size:12.5px;color:var(--muted)">
+    Copia de seguridad del banco completo en el formato corto de importación. Versiónala en <code>data/</code>.
+  </p>
+  <div class="acts">
+    <a class="btn ghost" href="{{ url_for('questions_admin.export') }}">Exportar banco completo</a>
+  </div>
+
+  <p style="margin-top:24px"><a href="{{ url_for('practice.home') }}">&larr; Volver al inicio</a></p>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/import.js') }}"></script>
+{% endblock %}

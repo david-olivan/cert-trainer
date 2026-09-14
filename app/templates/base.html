@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}Entrenador AIB-C01{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+  <div class="aib"><div class="wrap">
+    {% if current_user.is_authenticated %}
+      <form action="{{ url_for('auth.logout') }}" method="post" style="text-align:right;margin-bottom:8px">
+        <button type="submit" class="btn ghost" style="padding:4px 10px;font-size:12px">Salir</button>
+      </form>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </div></div>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

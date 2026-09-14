@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Entrenador AIB-C01</h1>
+  <p class="sub">AWS Certified AI Business Strategist · {{ total_questions }} preguntas en el banco</p>
+
+  <div class="meter">
+    {% for d in [1, 2, 3, 4] %}
+      {% set pct = readiness[d] %}
+      {% set cls = "" if pct is none else ("low" if pct < 60 else ("mid" if pct < pass_threshold else "")) %}
+      <div class="col">
+        <div class="track">
+          {% if pct is not none %}<div class="fill {{ cls }}" style="height:{{ pct }}%"></div>{% endif %}
+          <div class="thr" style="bottom:{{ pass_threshold }}%"></div>
+          <div class="pct">{{ "—" if pct is none else pct ~ " %" }}</div>
+        </div>
+        <div class="cap">{{ domain_names[d].split(" ")[0] }}<br>{{ domain_weights[d] }} %</div>
+      </div>
+    {% endfor %}
+  </div>
+  <p class="meter-note">
+    Aciertos acumulados por dominio sobre todas tus respuestas. La línea discontinua marca el
+    {{ pass_threshold }} %, estimación orientativa del aprobado — el examen puntúa de 100 a 1000
+    y no publica el porcentaje de aciertos equivalente.
+  </p>
+
+  <h2>Entrenar</h2>
+  <div class="modes">
+    <button class="mode" data-mode="simulacro">
+      <span><b>Simulacro cronometrado</b><span>Todas las preguntas, 2 min cada una, sin explicaciones hasta el final</span></span>
+      <span class="go">Empezar</span>
+    </button>
+    <button class="mode" data-mode="rapida">
+      <span><b>Tanda rápida</b><span>10 preguntas ponderadas por el peso de cada dominio</span></span>
+      <span class="go">Empezar</span>
+    </button>
+    {% for d in [1, 2, 3, 4] %}
+      <button class="mode" data-mode="dominio" data-domain="{{ d }}">
+        <span><b>Dominio {{ d }} · {{ domain_names[d] }}</b><span>{{ question_counts[d] }} preguntas · explicación inmediata</span></span>
+        <span class="go">Entrenar</span>
+      </button>
+    {% endfor %}
+    <button class="mode" data-mode="fallos" {{ "disabled" if failed_count == 0 else "" }}>
+      <span><b>Repaso de fallos</b><span>{{ "Las " ~ ([failed_count, 20] | min) ~ " preguntas que más veces has fallado" if failed_count else "Todavía no has fallado ninguna pregunta" }}</span></span>
+      <span class="go">Repasar</span>
+    </button>
+  </div>
+
+  {% if history %}
+    <div class="hist">
+      <h2 style="margin-top:4px">Últimas sesiones</h2>
+      {% for s in history %}
+        {% set labels = {"dominio": "Dominio", "simulacro": "Simulacro", "fallos": "Repaso", "rapida": "Tanda rápida"} %}
+        <div class="hrow">
+          <span>{{ s.finished_at.day }} {{ s.finished_at.strftime("%b") }} · {{ labels[s.mode] }} · {{ s.question_count }} preguntas</span>
+          <b>{{ s.score_pct }} %</b>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <p style="font-size:12px;color:var(--muted);margin-top:24px">
+    <a href="{{ url_for('questions_admin.index') }}">Añadir o exportar preguntas</a>
+  </p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll(".mode:not(:disabled)").forEach(function (btn) {
+  btn.addEventListener("click", function () {
+    var mode = btn.dataset.mode;
+    var domain = btn.dataset.domain;
+    var params = new URLSearchParams({mode: mode});
+    if (domain) params.set("domain", domain);
+    window.location.href = "{{ url_for('practice.session_view') }}?" + params.toString();
+  });
+});
+</script>
+{% endblock %}

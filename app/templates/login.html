@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Acceso — Entrenador AIB-C01{% endblock %}
+{% block content %}
+  <h1>Entrenador AIB-C01</h1>
+  <p class="sub">Preparación para AWS Certified AI Business Strategist</p>
+
+  <form class="login-form" method="post" action="{{ url_for('auth.login') }}">
+    <div>
+      <label for="username">Usuario</label>
+      <input type="text" id="username" name="username" autocomplete="username" autofocus>
+    </div>
+    <div>
+      <label for="password">Contraseña</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="btn">Entrar</button>
+  </form>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+{% endblock %}
