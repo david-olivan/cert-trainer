@@ -1,0 +1,24 @@
+{
+  "name": "render-plugin",
+  "description": "Render plugin for Claude Code",
+  "owner": {
+    "name": "Render",
+    "email": "devrel@render.com"
+  },
+  "plugins": [
+    {
+      "name": "render",
+      "description": "Deploy, debug, and monitor applications on Render",
+      "version": "0.2.2",
+      "author": {
+        "name": "Render",
+        "email": "devrel@render.com"
+      },
+      "source": {
+        "source": "github",
+        "repo": "render-oss/render-plugin-claude-code"
+      },
+      "category": "developer-tools"
+    }
+  ]
+}

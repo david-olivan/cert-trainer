@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "cert-trainer",
+  "description": "Plugins vendored into este repositorio para el desarrollo de cert-trainer (Flask + Neon + Render).",
+  "plugins": [
+    {
+      "name": "pyright-lsp",
+      "source": "./pyright-lsp"
+    },
+    {
+      "name": "neon",
+      "source": "./neon"
+    },
+    {
+      "name": "render",
+      "source": "./render"
+    }
+  ]
+}

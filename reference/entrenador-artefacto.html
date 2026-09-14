@@ -1,0 +1,530 @@
+<style>
+  :root{
+    --paper:#E8EDF0;
+    --panel:#FDFDFC;
+    --ink:#16242E;
+    --muted:#5D7180;
+    --line:#C4D0D8;
+    --teal:#0F5E63;
+    --teal-soft:#DCE9E9;
+    --green:#1E6B4F;
+    --red:#9E342B;
+    --amber:#8A6414;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box}
+  .aib{
+    font-family:var(--sans);
+    color:var(--ink);
+    background:var(--paper);
+    padding:20px 16px 32px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .aib button{font-family:inherit;cursor:pointer}
+  .aib button:focus-visible,.aib [tabindex]:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+  .wrap{max-width:760px;margin:0 auto}
+
+  /* ---- readiness meter (home hero) ---- */
+  .meter{display:flex;gap:10px;align-items:flex-end;height:150px;margin:4px 0 6px}
+  .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative}
+  .col .track{position:relative;height:100%;background:var(--panel);border:1px solid var(--line)}
+  .col .fill{position:absolute;left:0;right:0;bottom:0;background:var(--teal)}
+  .col .fill.low{background:var(--red)}
+  .col .fill.mid{background:var(--amber)}
+  .col .thr{position:absolute;left:-1px;right:-1px;border-top:1px dashed var(--muted)}
+  .col .pct{position:absolute;top:6px;left:0;right:0;text-align:center;font-size:13px;font-weight:600}
+  .col .cap{margin-top:8px;font-size:11px;color:var(--muted);text-align:center;line-height:1.3}
+  .meter-note{font-size:12px;color:var(--muted);margin:10px 0 22px}
+
+  h1{font-size:20px;margin:0 0 2px;letter-spacing:-0.01em}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+  h2{font-size:14px;margin:26px 0 10px;font-weight:600}
+
+  .modes{display:grid;gap:8px}
+  .mode{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;
+    width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);
+    padding:13px 14px;font-size:14px;color:var(--ink);
+  }
+  .mode:hover{border-color:var(--teal)}
+  .mode:disabled{opacity:.45;cursor:not-allowed}
+  .mode b{font-weight:600;display:block}
+  .mode span{color:var(--muted);font-size:12.5px}
+  .mode .go{color:var(--teal);font-size:13px;white-space:nowrap}
+
+  .hist{border-top:1px solid var(--line);margin-top:24px;padding-top:14px}
+  .hrow{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;color:var(--muted)}
+  .hrow b{color:var(--ink);font-weight:600}
+
+  /* ---- session ---- */
+  .bar{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+  .bar .dom{color:var(--teal);font-weight:600}
+  .prog{height:3px;background:var(--line);margin-bottom:22px}
+  .prog i{display:block;height:100%;background:var(--teal)}
+  .stem{font-family:var(--serif);font-size:17px;line-height:1.55;margin:0 0 6px}
+  .hintline{font-size:12.5px;color:var(--muted);margin:10px 0 0}
+  .hintbtn{background:none;border:none;color:var(--teal);font-size:12.5px;padding:0;text-decoration:underline}
+  .instr{font-size:12.5px;color:var(--amber);margin:8px 0 0;font-weight:600}
+  .opts{margin:18px 0 0;display:grid;gap:7px}
+  .opt{
+    display:flex;gap:11px;align-items:flex-start;width:100%;text-align:left;
+    background:var(--panel);border:1px solid var(--line);padding:11px 13px;font-size:14px;color:var(--ink);
+  }
+  .opt:hover{border-color:var(--muted)}
+  .opt .k{
+    flex:none;width:21px;height:21px;border:1px solid var(--line);border-radius:50%;
+    font-size:11.5px;display:flex;align-items:center;justify-content:center;color:var(--muted);margin-top:1px;
+  }
+  .opt.sel{border-color:var(--teal);background:var(--teal-soft)}
+  .opt.sel .k{border-color:var(--teal);background:var(--teal);color:#fff}
+  .opt.ok{border-color:var(--green);background:#E4EFE9}
+  .opt.ok .k{border-color:var(--green);background:var(--green);color:#fff}
+  .opt.bad{border-color:var(--red);background:#F3E3E1}
+  .opt.bad .k{border-color:var(--red);background:var(--red);color:#fff}
+  .opt:disabled{cursor:default}
+
+  .verdict{margin-top:20px;border-left:3px solid var(--line);padding:2px 0 2px 14px}
+  .verdict.ok{border-color:var(--green)}
+  .verdict.bad{border-color:var(--red)}
+  .verdict b{display:block;font-size:13.5px;margin-bottom:5px}
+  .verdict.ok b{color:var(--green)}
+  .verdict.bad b{color:var(--red)}
+  .verdict p{margin:0;font-size:14px;line-height:1.55}
+  .verdict .ref{display:block;margin-top:8px;font-size:12px;color:var(--muted)}
+
+  .acts{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
+  .btn{background:var(--teal);color:#fff;border:1px solid var(--teal);padding:10px 18px;font-size:14px}
+  .btn:hover{background:#0C4C50}
+  .btn.ghost{background:none;color:var(--teal)}
+  .btn.ghost:hover{background:var(--teal-soft)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+
+  /* ---- results ---- */
+  .score{font-family:var(--serif);font-size:44px;line-height:1;margin:6px 0 4px}
+  .band{font-size:14px;margin:0 0 20px}
+  .band.pass{color:var(--green)}
+  .band.fail{color:var(--red)}
+  .dtable{width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:8px}
+  .dtable td{padding:7px 0;border-bottom:1px solid var(--line);vertical-align:middle}
+  .dtable td:first-child{padding-right:12px}
+  .dtable td:last-child{text-align:right;white-space:nowrap;font-weight:600}
+  .minibar{height:6px;background:var(--line);width:100%;min-width:70px}
+  .minibar i{display:block;height:100%;background:var(--teal)}
+  .weak{font-size:13.5px;margin:6px 0 0;padding-left:18px}
+  .weak li{margin-bottom:5px}
+
+  .tools{border-top:1px solid var(--line);margin-top:28px;padding-top:12px}
+  .tools summary{font-size:12.5px;color:var(--muted);cursor:pointer}
+  .tools textarea{width:100%;height:110px;margin-top:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;padding:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+  .tools .msg{font-size:12.5px;margin-top:8px;color:var(--teal)}
+  .tools .msg.err{color:var(--red)}
+  .loading{font-size:13px;color:var(--muted);padding:30px 0}
+  @media (prefers-reduced-motion: no-preference){
+    .prog i,.col .fill{transition:width .25s ease, height .25s ease}
+  }
+</style>
+
+<div class="aib"><div class="wrap" id="app"><p class="loading">Cargando tu historial…</p></div></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------------------------------------------------------------- banco
+  // dom: 1-4 | hab: habilidad de la guía | t: 's' única, 'm' múltiple
+  var BANK = [
+  // ======================= DOMINIO 1 (24 %) =======================
+  {id:"d1-01",dom:1,hab:"1.1.2",t:"s",q:"Una aseguradora usa un sistema que clasifica partes de siniestro en categorías a partir de un histórico etiquetado, y otro que redacta el borrador de la carta al cliente. ¿Cómo se describen correctamente ambos sistemas?",o:["El primero es machine learning; el segundo es IA generativa","Ambos son IA generativa, porque ambos producen una salida","El primero es IA generativa; el segundo es machine learning","Ambos son automatización basada en reglas con una capa de IA"],ok:[0],w:"El ML clásico aprende de datos etiquetados para predecir o clasificar. La GenAI produce contenido nuevo (texto, imagen, código). Ambos son subconjuntos de la IA, pero no son intercambiables: confundirlos lleva a elegir mal la solución y a presupuestar mal.",h:"Uno asigna una etiqueta existente; el otro crea contenido que no existía."},
+  {id:"d1-02",dom:1,hab:"1.1.3",t:"m",q:"Una empresa quiere analizar la voz del cliente. Dispone de valoraciones numéricas en su CRM, transcripciones de llamadas, correos electrónicos y una tabla de tiempos de resolución. ¿Cuáles de estas fuentes son datos NO estructurados? (Seleccione DOS).",o:["Las transcripciones de llamadas","Las valoraciones numéricas del CRM","Los correos electrónicos","La tabla de tiempos de resolución","El identificador de cliente asociado a cada registro"],ok:[0,2],w:"Los datos no estructurados no encajan en un esquema de filas y columnas: texto libre, audio, imagen, vídeo. Las valoraciones, los tiempos y los identificadores son estructurados. Importa porque el tratamiento, el coste y la técnica aplicable difieren radicalmente.",h:"Pregúntate cuáles caben en una hoja de cálculo sin perder información."},
+  {id:"d1-03",dom:1,hab:"1.1.6",t:"s",q:"El comité de dirección quiere certificar formalmente que la organización gestiona la IA de forma responsable, con auditoría externa. ¿Qué norma internacional es la referencia adecuada?",o:["ISO/IEC 42001, un sistema de gestión de IA certificable","ISO/IEC 23053, un marco de referencia de sistemas de IA con ML","ISO 9001, ampliada con un anexo de IA","El AWS Well-Architected Framework, lente de IA responsable"],ok:[0],w:"ISO/IEC 42001 define un sistema de gestión de IA (AIMS) auditable y certificable. ISO/IEC 23053 es descriptiva: aporta marco y vocabulario común para sistemas basados en ML, pero no se certifica. El Well-Architected Framework es de AWS, no una norma internacional.",h:"Solo una de las opciones es un sistema de gestión certificable por un tercero."},
+  {id:"d1-04",dom:1,hab:"1.2.2",t:"m",q:"Un proveedor presenta su producto como un «agente de IA». ¿Qué capacidades distinguen a un agente de un asistente conversacional convencional? (Seleccione DOS).",o:["Invoca herramientas y sistemas externos para ejecutar acciones","Descompone un objetivo en pasos y decide la secuencia por sí mismo","Responde con mayor precisión porque usa un modelo más grande","Mantiene el historial de la conversación entre sesiones","Genera texto a partir de una petición del usuario"],ok:[0,1],w:"Lo que define a un agente es la autonomía en la planificación y el uso de herramientas para actuar sobre sistemas reales; a ello se suman la comunicación entre agentes y las estrategias de orquestación. Memoria de conversación, tamaño del modelo o generación de texto son rasgos de cualquier solución de GenAI.",h:"Busca lo que le permite actuar, no solo conversar."},
+  {id:"d1-05",dom:1,hab:"1.2.3",t:"s",q:"Un modelo de previsión de demanda desplegado hace 18 meses funcionó muy bien el primer año, pero sus predicciones han ido degradándose sin que nadie haya modificado el sistema. Los hábitos de compra han cambiado desde entonces. ¿Qué está ocurriendo?",o:["Deriva de modelo: los datos reales ya no se parecen a los de entrenamiento","Alucinación: el modelo genera predicciones sin fundamento","Sobreajuste introducido por el último reentrenamiento","Fuga de datos entre los conjuntos de entrenamiento y validación"],ok:[0],w:"La deriva aparece cuando la realidad se aleja de la distribución con la que se entrenó el modelo, y por eso los sistemas de IA requieren supervisión y actualización continuas. No hubo reentrenamiento, así que no cabe hablar de sobreajuste nuevo, y las alucinaciones son un fenómeno de los modelos generativos.",h:"Nadie tocó el sistema; lo que cambió está fuera de él."},
+  {id:"d1-06",dom:1,hab:"1.3.3",t:"s",q:"Un despacho quiere que su asistente interno responda citando las circulares internas, que se actualizan cada mes. Las respuestas deben reflejar siempre la versión vigente. ¿Qué técnica de adaptación es la adecuada?",o:["Generación aumentada por recuperación (RAG) sobre el repositorio de circulares","Refinamiento (fine-tuning) del modelo con el texto de las circulares","Ampliar la ventana de contexto del modelo al máximo disponible","Entrenar un modelo fundacional propio con el corpus del despacho"],ok:[0],w:"RAG recupera el documento vigente en el momento de la consulta, así que una circular nueva está disponible sin tocar el modelo. El refinamiento ajusta estilo y comportamiento, pero congela el conocimiento en el momento del entrenamiento y obligaría a repetirlo cada mes. Entrenar un modelo propio es desproporcionado.",h:"El contenido cambia cada mes: ¿qué opción no exige repetir el proceso cada vez?"},
+  {id:"d1-07",dom:1,hab:"1.3.2",t:"s",q:"Un asistente que resume contratos empieza a omitir cláusulas del final del documento cuando los contratos superan las 80 páginas. Con contratos cortos funciona bien. ¿Cuál es la causa más probable?",o:["El documento excede la ventana de contexto del modelo","El modelo está sufriendo deriva por falta de reentrenamiento","La calidad de los datos de entrenamiento era insuficiente","La ingeniería de peticiones no incluye ejemplos de salida"],ok:[0],w:"La ventana de contexto limita cuánto texto puede procesar el modelo en una sola pasada; al superarla se pierde contenido, típicamente el del final. La solución de negocio es trocear el documento o usar recuperación, no cambiar de modelo sin más análisis.",h:"El comportamiento depende del tamaño de la entrada, no del tiempo transcurrido."},
+  {id:"d1-08",dom:1,hab:"1.3.1",t:"s",q:"Las respuestas de un asistente de soporte son correctas pero demasiado largas y con formato inconsistente, lo que obliga a los agentes a reescribirlas. ¿Cuál es la primera medida a aplicar?",o:["Mejorar la petición: especificar formato, extensión y tono, con un ejemplo de salida","Refinar el modelo con respuestas históricas bien redactadas","Sustituir el modelo por otro de mayor capacidad","Añadir una barrera de protección que rechace respuestas largas"],ok:[0],w:"El problema es de formato, no de conocimiento. La ingeniería de peticiones es la palanca más barata y rápida: instrucciones explícitas de formato y extensión, más un ejemplo. Refinar o cambiar de modelo son intervenciones caras para un síntoma que se corrige antes.",h:"Empieza siempre por la intervención de menor coste que pueda resolverlo."},
+  {id:"d1-09",dom:1,hab:"1.1.5",t:"s",q:"Una empresa entrena un modelo de cribado de currículos con diez años de decisiones de contratación propias. El comité de dirección pregunta qué riesgo principal conlleva ese enfoque.",o:["El modelo reproducirá los sesgos presentes en las decisiones históricas","El modelo no podrá procesar currículos en formato no estructurado","El modelo requerirá una ventana de contexto mayor de la disponible","El modelo dejará de funcionar si cambia el formato de los currículos"],ok:[0],w:"Un modelo entrenado con datos históricos aprende los patrones de esos datos, incluidos los discriminatorios. Es el ejemplo canónico de por qué la calidad y la representatividad de los datos condicionan el resultado y de por qué la equidad se evalúa antes de desplegar.",h:"El modelo aprende lo que hicimos, no lo que deberíamos haber hecho."},
+  {id:"d1-10",dom:1,hab:"1.2.1",t:"s",q:"Un equipo financiero propone sustituir por IA generativa la validación de que cada factura recibida cumple seis condiciones fijas y comprobables. El proceso actual, basado en reglas, no falla. ¿Qué debería recomendar el estratega?",o:["Mantener la automatización por reglas y aplicar la IA donde haya ambigüedad, como la extracción de datos de facturas en formatos distintos","Sustituir el sistema por GenAI para unificar tecnologías y reducir el mantenimiento","Sustituirlo, porque la IA se adaptará automáticamente a cambios normativos futuros","Mantener las reglas y descartar cualquier uso de IA en el proceso de facturación"],ok:[0],w:"Sustituir un determinismo que funciona por un sistema probabilístico añade coste, latencia y riesgo de error sin beneficio. Pero descartar la IA en todo el proceso es el extremo opuesto: la extracción de datos de documentos heterogéneos sí es un problema ambiguo donde aporta valor.",h:"Dos opciones son extremos; el examen premia la que discrimina dentro del proceso."},
+  {id:"d1-11",dom:1,hab:"1.1.4",t:"s",q:"Antes de aprobar un proyecto de IA para predecir el abandono de clientes, ¿qué pregunta sobre los datos es MÁS crítica para el patrocinador del proyecto?",o:["¿Los datos disponibles son completos, actuales y representativos de los clientes que queremos predecir?","¿Cuántos gigabytes de datos históricos hemos acumulado?","¿En qué formato de archivo están almacenados los datos?","¿Qué proveedor de nube aloja actualmente el almacén de datos?"],ok:[0],w:"El volumen no compensa la mala calidad: datos incompletos, desactualizados o no representativos producen predicciones inservibles por muy sofisticado que sea el modelo. Formato y proveedor son cuestiones de implementación, fuera del alcance del rol.",h:"Más datos no es lo mismo que mejores datos."},
+
+  // ======================= DOMINIO 2 (28 %) =======================
+  {id:"d2-01",dom:2,hab:"2.1.2",t:"s",q:"Una compañía necesita un chatbot de atención al cliente operativo en tres meses. No tiene científicos de datos en plantilla, el caso de uso es estándar en su sector y el presupuesto es limitado. ¿Qué decisión es la MÁS adecuada?",o:["Comprar una solución existente o adquirirla a través de AWS Marketplace","Desarrollar una solución propia para maximizar la diferenciación","Formar un equipo interno de ciencia de datos antes de decidir","Aplazar la iniciativa hasta disponer de capacidades internas"],ok:[0],w:"Cuando el plazo es corto, la capacidad interna inexistente y el caso de uso no es diferenciador, comprar es la opción racional. Construir se reserva para lo que constituye ventaja competitiva. Aplazar ignora que existe una necesidad de negocio hoy.",h:"Tres restricciones apuntan en la misma dirección: plazo, capacidad y presupuesto."},
+  {id:"d2-02",dom:2,hab:"2.1.4",t:"s",q:"Una empresa quiere usar IA para reducir el tiempo de aprobación de pedidos. El análisis revela que el retraso se debe a que tres departamentos aprueban en serie y uno de ellos tarda ocho días en revisar la cola. ¿Qué debería recomendar el estratega?",o:["Rediseñar el flujo de aprobación antes de plantear ninguna solución de IA","Desplegar un agente de IA que apruebe automáticamente los pedidos de bajo importe","Implantar un modelo predictivo que anticipe qué pedidos se retrasarán","Automatizar con IA la generación de recordatorios al departamento lento"],ok:[0],w:"La habilidad 2.1.4 evalúa reconocer cuándo la IA no es la solución. El problema es de diseño de proceso: aplicar IA sobre un flujo mal diseñado automatiza la ineficiencia y añade coste. Las otras opciones mitigan síntomas sin tocar la causa.",h:"Identifica la causa raíz antes de elegir la herramienta."},
+  {id:"d2-03",dom:2,hab:"2.2.1",t:"m",q:"El comité pide que el cuadro de mando de una iniciativa de IA recoja tanto beneficios tangibles como intangibles. ¿Cuáles de los siguientes son beneficios INTANGIBLES? (Seleccione DOS).",o:["Mejora de la satisfacción del cliente","Aumento de la productividad percibida por los empleados","Reducción del coste por expediente tramitado","Incremento de los ingresos por venta cruzada","Ahorro en licencias de software retiradas"],ok:[0,1],w:"Los intangibles no se traducen directamente en euros pero sostienen el caso de negocio a medio plazo: satisfacción, experiencia de empleado, calidad percibida, reputación. Coste por expediente, ingresos y ahorro en licencias son tangibles y medibles en la cuenta de resultados.",h:"Separa lo que aparece en la cuenta de resultados de lo que no."},
+  {id:"d2-04",dom:2,hab:"2.2.4",t:"s",q:"La dirección quiere detectar pronto si un despliegue de IA va a tener éxito, sin esperar a los resultados financieros anuales. ¿Qué indicador principal es el MÁS útil?",o:["El porcentaje de usuarios objetivo que usan la herramienta de forma recurrente","El ahorro de costes acumulado al cierre del ejercicio","El retorno de la inversión calculado a doce meses","La reducción interanual de la rotación de personal"],ok:[0],w:"Los indicadores principales anticipan el resultado; los de resultado lo confirman cuando ya es tarde para corregir. La adopción recurrente es el mejor predictor temprano: una herramienta que nadie usa no generará ahorro, y detectarlo en el mes dos permite intervenir.",h:"Distingue entre lo que predice y lo que confirma."},
+  {id:"d2-05",dom:2,hab:"2.2.3",t:"s",q:"Un asistente de redacción ahorra 2 horas semanales a cada uno de 50 empleados cuyo coste cargado es de 40 €/hora. La solución cuesta 120.000 € anuales entre licencias e implantación. Considerando 46 semanas laborables, ¿qué conclusión es correcta?",o:["El ahorro bruto anual ronda los 184.000 €, por lo que el retorno es positivo pero depende de que el tiempo liberado se reinvierta en trabajo de valor","El ahorro bruto anual ronda los 184.000 €, por lo que el retorno está garantizado","El ahorro no puede calcularse sin conocer el incremento de ingresos asociado","El proyecto no es viable porque el coste supera el ahorro directo"],ok:[0],w:"50 × 2 × 46 × 40 = 184.000 €, frente a 120.000 € de coste. Pero el examen insiste en el matiz: el ahorro de tiempo solo se convierte en valor si ese tiempo se reasigna a actividad productiva. Presentarlo como garantizado es el error clásico de los casos de negocio de IA.",h:"Haz la multiplicación y después pregúntate qué pasa con las horas liberadas."},
+  {id:"d2-06",dom:2,hab:"2.2.5",t:"s",q:"El gasto mensual en inferencia de una carga de IA generativa se ha triplicado en un trimestre y la dirección pide control sin frenar la adopción. ¿Qué secuencia es la MÁS apropiada?",o:["Analizar el desglose del gasto para identificar los factores de coste y después aplicar medidas de optimización sobre los principales","Fijar de inmediato un tope de gasto mensual por departamento","Migrar la carga a un modelo más pequeño para reducir el coste unitario","Suspender los casos de uso nuevos hasta el cierre del ejercicio"],ok:[0],w:"Primero se entiende dónde se va el dinero; luego se actúa sobre los factores dominantes. Poner un tope o cambiar de modelo sin datos puede degradar precisamente el caso de uso que más valor genera, y suspender la adopción contradice el objetivo declarado.",h:"Nunca optimices lo que todavía no has medido."},
+  {id:"d2-07",dom:2,hab:"2.2.2",t:"s",q:"Un director de operaciones propone medir el impacto de un asistente de IA comparando los resultados del equipo que lo usa con los del mes anterior del mismo equipo. En ese intervalo se incorporaron cuatro personas al equipo. ¿Cuál es la objeción principal?",o:["La comparación no aísla el efecto de la IA, porque cambió otra variable relevante a la vez","La muestra es demasiado pequeña para tener validez estadística","Un mes es un horizonte insuficiente para cualquier medición de IA","Las métricas de referencia deben fijarlas siempre finanzas, no operaciones"],ok:[0],w:"Una métrica de referencia sirve para atribuir el cambio a la intervención. Si simultáneamente crece la plantilla, la mejora puede deberse a la IA, al refuerzo del equipo o a ambos. La objeción es de diseño de la medición, no de tamaño muestral ni de gobernanza.",h:"¿Qué más cambió entre las dos fotos que se comparan?"},
+  {id:"d2-08",dom:2,hab:"2.3.3",t:"s",q:"Dos competidores del mismo sector adoptan el mismo modelo fundacional del mismo proveedor. ¿Qué es lo que puede convertirse en una ventaja competitiva SOSTENIBLE para uno de ellos?",o:["Los datos propios y el rediseño del proceso alrededor de la solución","El acceso anticipado a la última versión del modelo","El mayor presupuesto destinado a licencias de IA","La contratación de más perfiles técnicos que el competidor"],ok:[0],w:"Un modelo comercial está disponible para cualquiera que pague, así que no diferencia. Lo que no se puede copiar es el dato propietario, el conocimiento del proceso y la capacidad organizativa para integrarlo. Presupuesto y plantilla son replicables por quien tenga caja.",h:"Pregunta qué no puede comprar mañana tu competidor."},
+  {id:"d2-09",dom:2,hab:"2.1.3",t:"s",q:"Un piloto de IA lleva nueve meses, ha consumido el 80 % de su presupuesto y no ha alcanzado ninguno de los criterios de éxito definidos al inicio. El equipo pide seis meses más argumentando lo ya invertido. ¿Qué recomendación es la adecuada?",o:["Terminar la iniciativa y reasignar los recursos, documentando los aprendizajes","Conceder la ampliación, porque abandonar desperdiciaría la inversión realizada","Ampliar el alcance del piloto a más departamentos para obtener más datos","Reducir los criterios de éxito para poder cerrar el piloto como exitoso"],ok:[0],w:"Priorizar iniciativas incluye decidir escalar, pausar o terminar. El argumento de lo ya invertido es la falacia del coste hundido: lo gastado no vuelve, y la decisión debe tomarse sobre el valor esperado futuro. Rebajar los criterios a posteriori destruye la credibilidad de todo el programa.",h:"La inversión pasada no es información sobre el rendimiento futuro."},
+  {id:"d2-10",dom:2,hab:"2.1.5",t:"s",q:"Una empresa va a migrar su asistente de atención al cliente de una plataforma de IA a otra. ¿Qué consideración es la MÁS crítica desde la perspectiva de negocio?",o:["Garantizar la continuidad del servicio y comparar el rendimiento con el sistema actual antes de conmutar","Elegir el proveedor con el precio por token más bajo del mercado","Migrar en una sola ventana para minimizar la duración del proyecto","Replicar exactamente la arquitectura técnica anterior en la nueva plataforma"],ok:[0],w:"El rol responde de la continuidad del negocio: el servicio no puede degradarse durante la transición, y sin comparar el rendimiento contra la referencia actual no se sabrá si el cambio mejora o empeora. Precio unitario y arquitectura son insumos, no el criterio rector.",h:"¿Qué percibiría el cliente si la transición sale mal?"},
+  {id:"d2-11",dom:2,hab:"2.1.1",t:"s",q:"El director comercial pide «aplicar IA en ventas». ¿Cuál es el primer paso del estratega para convertir esa petición en una iniciativa priorizable?",o:["Identificar qué resultado de negocio concreto se quiere mover y con qué métrica se comprobará","Elaborar un inventario de los servicios de IA disponibles en el proveedor de nube","Encargar una prueba de concepto con la herramienta comercial mejor valorada","Estimar el presupuesto anual necesario para el área de ventas"],ok:[0],w:"La asociación entre capacidad de IA y resultado empresarial es el núcleo de la habilidad 2.1.1. Sin un resultado concreto y una métrica no hay forma de priorizar la iniciativa, ni de decidir después si funcionó. El catálogo de servicios y el presupuesto vienen después.",h:"«Aplicar IA» no es un objetivo; es un medio sin destino."},
+  {id:"d2-12",dom:2,hab:"2.3.4",t:"s",q:"Una empresa opera en un sector donde varios competidores ya han desplegado IA en procesos centrales y los clientes lo perciben como estándar. ¿Qué nivel de inversión es coherente?",o:["Inversión significativa y sostenida, porque la IA se ha convertido en requisito de permanencia y no en diferenciador","Inversión mínima y exploratoria, para esperar a que la tecnología madure","Inversión máxima en investigación propia para superar técnicamente a los competidores","Ninguna inversión adicional hasta cuantificar el retorno de los competidores"],ok:[0],w:"El nivel de inversión se calibra según la madurez del sector y la dinámica competitiva. Cuando la adopción es generalizada, quedarse atrás ya no es prudencia sino riesgo de exclusión; pero la meta es la paridad operativa con foco en el negocio, no una carrera de investigación técnica.",h:"En un sector maduro, no invertir también es una apuesta."},
+
+  // ======================= DOMINIO 3 (24 %) =======================
+  {id:"d3-01",dom:3,hab:"3.1.1",t:"s",q:"Un sistema de IA que prioriza candidaturas a vivienda social muestra tasas de aprobación distintas entre grupos demográficos con perfiles socioeconómicos equivalentes. ¿Qué dimensión de la IA responsable está comprometida principalmente?",o:["Equidad","Solidez","Privacidad","Transparencia"],ok:[0],w:"La equidad se refiere a resultados no discriminatorios entre grupos. La transparencia sería no informar de que hay un sistema automatizado; la privacidad, un uso indebido de los datos personales; la solidez, un fallo de estabilidad del sistema. Distinguir las dimensiones es materia recurrente del dominio 3.",h:"El problema no es el funcionamiento del sistema, sino a quién perjudica."},
+  {id:"d3-02",dom:3,hab:"3.1.3",t:"s",q:"¿En qué momento deben incorporarse las prácticas de IA responsable en un proyecto de IA?",o:["Durante la planificación inicial, antes de seleccionar la solución","Tras el piloto, cuando ya se conoce el comportamiento real del sistema","Antes del despliegue a producción, en la fase de validación","Cuando el regulador o un cliente lo exija formalmente"],ok:[0],w:"Gobernanza desde el diseño: incorporar la IA responsable en la planificación condiciona la selección de la solución, el diseño del dato y los controles. Añadirla después convierte cada hallazgo en un rediseño caro o en una excepción que se acaba aceptando por presión de plazo.",h:"Cuanto más tarde se detecta un problema de diseño, más cuesta corregirlo."},
+  {id:"d3-03",dom:3,hab:"3.1.4",t:"s",q:"Un asistente de IA responde consultas de pacientes sobre su medicación. ¿Qué medida de seguridad es la MÁS importante?",o:["Definir criterios de escalamiento a un profesional humano para las consultas de riesgo clínico","Añadir un aviso legal indicando que las respuestas las genera una IA","Registrar todas las conversaciones para su auditoría posterior","Limitar la extensión de las respuestas para evitar ambigüedades"],ok:[0],w:"Cuando el error puede dañar a una persona, la supervisión humana no es opcional y debe activarse en el momento, no después. El aviso legal y el registro son necesarios pero no evitan el daño; acortar las respuestas no reduce el riesgo clínico.",h:"Pregunta qué medida evita el daño en lugar de documentarlo."},
+  {id:"d3-04",dom:3,hab:"3.2.1",t:"m",q:"Se constituye un comité de gobernanza de la IA. ¿Qué dos características son esenciales para que sea eficaz? (Seleccione DOS).",o:["Representación interfuncional: negocio, técnica, legal y cumplimiento","Responsabilidad asignada de forma explícita sobre cada decisión","Composición exclusivamente técnica para garantizar el rigor","Dependencia del área de TI para agilizar la ejecución","Reuniones semanales con acta publicada en la intranet"],ok:[0,1],w:"La habilidad 3.2.1 pide exactamente esas dos condiciones: representación interfuncional y responsabilidad clara. Un comité solo técnico no puede pronunciarse sobre riesgo legal ni sobre impacto de negocio; la cadencia de reuniones es un detalle operativo, no un factor de eficacia.",h:"Quién está en la sala y quién responde de la decisión."},
+  {id:"d3-05",dom:3,hab:"3.2.3",t:"s",q:"Una empresa despliega un asistente interno con recuperación sobre el repositorio documental corporativo. Durante las pruebas, un becario obtiene a través del asistente información salarial del comité de dirección. ¿Cuál es la causa?",o:["El sistema no propaga los permisos del usuario a los documentos recuperados","El modelo ha alucinado datos salariales plausibles","La ventana de contexto es demasiado amplia para el caso de uso","Falta una barrera de protección que filtre términos sensibles"],ok:[0],w:"Un sistema de recuperación debe respetar los controles de acceso del usuario que consulta: si indexa todo y responde a cualquiera, convierte un repositorio con permisos en uno abierto. Filtrar términos es un parche frágil que no resuelve el fallo de autorización subyacente.",h:"El documento existía y estaba protegido: ¿quién dejó de comprobar el permiso?"},
+  {id:"d3-06",dom:3,hab:"3.2.4",t:"s",q:"Una organización tiene 30 casos de uso de IA y capacidad de gobernanza limitada. ¿Cuál es el enfoque adecuado?",o:["Clasificar los casos por nivel de riesgo y concentrar los controles más exigentes en los de riesgo alto","Aplicar el mismo nivel de control a todos los casos para garantizar coherencia","Gobernar primero los casos de uso con mayor presupuesto asignado","Delegar la gobernanza de cada caso en el departamento propietario"],ok:[0],w:"Los marcos de clasificación de riesgo existen para asignar el esfuerzo de gobernanza donde el impacto potencial lo justifica. El control uniforme desperdicia capacidad en casos triviales y ahoga la adopción; el presupuesto no es un indicador de riesgo.",h:"Riesgo alto y presupuesto alto no son lo mismo."},
+  {id:"d3-07",dom:3,hab:"3.3.3",t:"s",q:"El departamento de marketing quiere usar imágenes generadas por IA en una campaña comercial. ¿Qué cuestión de propiedad intelectual debe resolverse ANTES de la publicación?",o:["Qué derechos de uso comercial otorgan las condiciones del proveedor sobre las salidas generadas","Si el modelo ofrece suficiente calidad de resolución para impresión","Si los empleados que escriben las peticiones deben figurar como autores","Cuántos créditos de generación consumirá la campaña"],ok:[0],w:"Los términos del proveedor determinan si las salidas pueden explotarse comercialmente, qué indemnización ofrece frente a reclamaciones de terceros y qué restricciones aplican. La resolución y el consumo son cuestiones operativas; la autoría interna no resuelve el riesgo frente a terceros.",h:"El riesgo no está dentro de la empresa, sino frente a terceros."},
+  {id:"d3-08",dom:3,hab:"3.3.4",t:"s",q:"Un asistente de GenAI cita ocasionalmente cláusulas contractuales que no existen en ningún documento de la empresa, con un formato convincente. ¿De qué problema de fiabilidad se trata y qué mitigación corresponde?",o:["Alucinación; mitigar anclando las respuestas en fuentes recuperables y exigiendo la cita del documento origen","Deriva de modelo; mitigar reentrenando el modelo periódicamente","Degradación de la calidad de los datos; mitigar depurando el repositorio documental","Sesgo del modelo; mitigar equilibrando el conjunto de entrenamiento"],ok:[0],w:"El modelo genera contenido plausible sin respaldo factual: es una alucinación. La mitigación efectiva es anclar la respuesta en fuentes recuperables y obligar a citar el documento, de modo que lo no verificable sea visible. Reentrenar no corrige un fenómeno inherente al modelo generativo.",h:"El contenido no está mal recuperado: es que no existe."},
+  {id:"d3-09",dom:3,hab:"3.2.2",t:"s",q:"Bajo el modelo de responsabilidad compartida de AWS aplicado a una carga de IA, ¿de qué responde el cliente?",o:["De la clasificación de sus datos, de quién accede a ellos y del uso conforme que haga del servicio","De la seguridad física de los centros de datos donde se ejecuta el servicio","Del parcheado del hardware que aloja los modelos fundacionales","De la disponibilidad de la infraestructura subyacente del proveedor"],ok:[0],w:"El proveedor responde de la seguridad de la nube (instalaciones, hardware, infraestructura); el cliente, de la seguridad en la nube: sus datos, sus permisos, su configuración y el uso que hace del servicio. Es uno de los pocos contenidos de AWS que el examen sí exige dominar.",h:"Seguridad «de» la nube frente a seguridad «en» la nube."},
+  {id:"d3-10",dom:3,hab:"3.3.2",t:"s",q:"El comité asume que, habiendo auditado el sesgo del modelo antes del despliegue, la cuestión queda cerrada. ¿Qué objeción debe plantear el estratega?",o:["El sesgo puede aparecer en varias etapas del ciclo de vida, por lo que requiere supervisión continua","Las auditorías de sesgo previas al despliegue no tienen validez sin certificación externa","El sesgo solo puede medirse una vez el sistema está en producción","La responsabilidad sobre el sesgo corresponde al proveedor del modelo"],ok:[0],w:"El sesgo se introduce en los datos, en el diseño, en el despliegue y en el uso, y la población sobre la que opera el sistema cambia con el tiempo. Por eso la habilidad 3.3.2 exige supervisión continua para detectar la deriva del sesgo, no un control puntual.",h:"Una foto no sustituye a una vigilancia."},
+
+  // ======================= DOMINIO 4 (24 %) =======================
+  {id:"d4-01",dom:4,hab:"4.1.1",t:"s",q:"El consejo pregunta si la organización está preparada para adoptar IA. ¿Qué evaluación es la MÁS completa?",o:["Valorar conjuntamente alineación del liderazgo, calidad del dato, preparación cultural, infraestructura técnica y marcos de gobernanza","Auditar la infraestructura técnica y la capacidad de cómputo disponible","Medir el número de empleados con formación previa en IA","Comparar el gasto en tecnología con el de los competidores del sector"],ok:[0],w:"La preparación es multidimensional: una infraestructura excelente con datos en silos y sin patrocinio ejecutivo no sostiene una transformación. Evaluar una sola dimensión produce un diagnóstico falsamente optimista.",h:"La dimensión más débil es la que marca el techo."},
+  {id:"d4-02",dom:4,hab:"4.1.2",t:"s",q:"Una empresa ha ejecutado cinco pruebas de concepto de IA en dos años. Ninguna ha pasado a producción y no existe un proceso de decisión para promoverlas. ¿En qué fase de madurez se encuentra?",o:["Experimentación: genera actividad pero aún no valor operativo","Escalado: dispone de experiencia acumulada en múltiples casos","Optimización: ya extrae valor y ahora lo refina","Preadopción: todavía no ha iniciado su recorrido de IA"],ok:[0],w:"Hay actividad pero no valor operativo ni mecanismo de promoción a producción. Es el estancamiento típico en experimentación, y el diagnóstico correcto importa porque determina la intervención: falta un proceso de decisión, no más pilotos.",h:"Cuenta lo que ha llegado a producción, no lo que se ha intentado."},
+  {id:"d4-03",dom:4,hab:"4.2.1",t:"s",q:"Tres unidades de negocio mantienen sus propios registros de cliente, con formatos distintos y sin identificador común. La empresa quiere una visión unificada del cliente impulsada por IA. ¿Cuál es el primer obstáculo a resolver?",o:["Los silos de datos y la ausencia de un identificador común entre sistemas","La falta de capacidad de cómputo para procesar los tres repositorios","La ausencia de una herramienta de visualización corporativa","La resistencia cultural de las unidades a compartir información"],ok:[0],w:"Sin capacidad de relacionar los registros no hay visión unificada posible, con IA o sin ella. La resistencia cultural suele ser un factor real y aparece en el dominio 4, pero el enunciado describe un impedimento técnico y de gobierno del dato, previo a cualquier otra cosa.",h:"El enunciado describe un problema de datos, no de personas."},
+  {id:"d4-04",dom:4,hab:"4.2.2",t:"s",q:"Al definir la estrategia de datos para las iniciativas de IA, ¿qué elemento de gobierno es esencial?",o:["Asignar propiedad de cada conjunto de datos, con responsables identificados de su calidad y su uso","Centralizar todos los datos en un único repositorio antes de empezar","Anonimizar todos los conjuntos de datos de la organización por defecto","Conservar indefinidamente todos los datos generados por los sistemas"],ok:[0],w:"Sin propietarios, la calidad del dato no es responsabilidad de nadie y los marcos de intercambio carecen de interlocutor. Centralizar todo antes de empezar es un proyecto plurianual que bloquea cualquier avance; anonimizar por defecto puede inutilizar casos de uso legítimos.",h:"¿A quién llamas cuando un dato está mal?"},
+  {id:"d4-05",dom:4,hab:"4.3.4",t:"s",q:"Durante el anuncio de un programa de IA, varios equipos expresan temor por sus puestos de trabajo y la adopción se estanca. ¿Qué intervención de liderazgo es la MÁS eficaz?",o:["Comunicar de forma transparente cómo cambiarán las funciones y qué formación se ofrecerá, con plazos concretos","Posponer el programa hasta que disminuya la preocupación del personal","Presentar el programa como un cambio menor de herramientas para reducir la alarma","Vincular la evaluación del desempeño al uso de las nuevas herramientas"],ok:[0],w:"El miedo al cambio se combate con información concreta sobre el impacto en los roles y con una vía de desarrollo visible. Minimizar el cambio destruye la credibilidad en cuanto se note el impacto real, y forzar la adopción por la evaluación genera cumplimiento aparente, no adopción.",h:"La incertidumbre alimenta el miedo; los plazos concretos lo reducen."},
+  {id:"d4-06",dom:4,hab:"4.3.5",t:"s",q:"Una empresa quiere acelerar la alfabetización en IA en toda la plantilla, no solo en los perfiles técnicos. ¿Qué combinación es la MÁS adecuada?",o:["Formación por niveles según el rol, pruebas de concepto en equipos de negocio y formación específica en IA responsable","Un curso técnico avanzado obligatorio y homogéneo para toda la plantilla","Certificar a un grupo reducido de especialistas que resuelva las consultas del resto","Publicar en la intranet la documentación de las herramientas aprobadas"],ok:[0],w:"La alfabetización se acelera combinando formación segmentada por rol, práctica real en contextos de negocio y criterio sobre el uso responsable. Un curso único no sirve a perfiles heterogéneos, y concentrar el conocimiento en pocos especialistas reproduce el cuello de botella que se quiere eliminar.",h:"Alfabetizar a toda la plantilla exige varias puertas de entrada."},
+  {id:"d4-07",dom:4,hab:"4.3.6",t:"s",q:"Un equipo de control de calidad revisa manualmente el 100 % de las piezas. Un sistema de visión artificial detecta el 95 % de los defectos. ¿Qué rediseño del rol humano es el MÁS adecuado?",o:["Reorientar al equipo a supervisar los casos dudosos y los rechazos del sistema, y a analizar las causas de los defectos recurrentes","Mantener la revisión manual íntegra en paralelo al sistema de forma indefinida","Eliminar la revisión humana y confiar la decisión final al sistema","Reasignar al equipo a funciones ajenas al control de calidad"],ok:[0],w:"La habilidad 4.3.6 busca la transición de la operación manual a la supervisión y la colaboración, equilibrando las fortalezas humanas (pensamiento crítico, análisis causal) con las de la IA (volumen, constancia). Duplicar el trabajo anula el beneficio; suprimir la supervisión ignora el 5 % restante.",h:"El valor humano se desplaza del volumen al criterio."},
+  {id:"d4-08",dom:4,hab:"4.4.2",t:"s",q:"Tras un piloto exitoso en un departamento, la dirección quiere extender la solución a toda la organización. ¿Qué enfoque de escalado es el MÁS adecuado?",o:["Avanzar por fases, empezando por las áreas con beneficios a corto plazo demostrables y consolidando aprendizajes entre fases","Desplegar simultáneamente en todas las áreas para maximizar el retorno cuanto antes","Repetir un piloto independiente en cada departamento antes de decidir","Escalar solo cuando la solución alcance el 100 % de precisión"],ok:[0],w:"El escalado iterativo permite construir credibilidad con beneficios tempranos y corregir antes de comprometer a toda la organización. El despliegue simultáneo multiplica el impacto de cualquier error; repetir pilotos indefinidamente es el estancamiento del dominio 4.",h:"Escalar es una secuencia, no un interruptor."},
+  {id:"d4-09",dom:4,hab:"4.4.5",t:"s",q:"Una solución de IA pasa de piloto a producción. ¿Qué requisito NUEVO adquiere mayor importancia en esa transición?",o:["Los acuerdos de nivel de servicio, la supervisión operativa y los procedimientos de escalamiento de incidencias","La calidad de los datos de entrenamiento del modelo","La definición de los criterios de éxito del caso de uso","La selección del modelo fundacional más adecuado"],ok:[0],w:"El dato, los criterios de éxito y la elección del modelo ya debían estar resueltos en el piloto. Lo que cambia al entrar en producción es la exigencia operativa: compromisos de servicio, supervisión, escalamiento de incidencias y gobierno del sistema en marcha.",h:"La pregunta no es qué sigue importando, sino qué aparece por primera vez."},
+  {id:"d4-10",dom:4,hab:"4.4.4",t:"s",q:"Un programa de IA lleva un año escalando. ¿Qué mecanismo permite hacer seguimiento del valor a largo plazo?",o:["Ciclos de retroalimentación continua con métricas de éxito revisadas periódicamente","Un informe de cierre al finalizar cada despliegue departamental","Una auditoría externa anual del programa de IA","El recuento de casos de uso desplegados por trimestre"],ok:[0],w:"El valor a largo plazo exige medición viva: retroalimentación de usuarios y métricas revisadas conforme cambian el negocio y el sistema. Un informe de cierre fotografía un instante, y contar casos desplegados mide actividad, no valor.",h:"Contar despliegues no es lo mismo que medir valor."},
+  {id:"d4-11",dom:4,hab:"4.1.3",t:"s",q:"El diagnóstico de madurez de una empresa revela buena infraestructura y talento técnico, pero no existe ningún foro que decida qué iniciativas de IA se aprueban ni quién responde de los riesgos. ¿Dónde está la brecha?",o:["En la gobernanza","En la tecnología","En los procesos de negocio","En las capacidades de las personas"],ok:[0],w:"Las brechas se analizan en cuatro planos: personas, procesos, tecnología y gobernanza. Aquí el talento y la tecnología están cubiertos; lo que falta es quién decide y quién responde, que es la definición de gobernanza. Nombrar bien la brecha determina la inversión correctiva.",h:"Falta quien decide y quien responde."}
+  ];
+
+  var DOMS = {
+    1:{n:"Fundamentos y alfabetización en IA",s:"Fundamentos",w:24},
+    2:{n:"Estrategia de IA y valor empresarial",s:"Estrategia",w:28},
+    3:{n:"Gobernanza e IA responsable",s:"Gobernanza",w:24},
+    4:{n:"Preparación y transformación",s:"Transformación",w:24}
+  };
+  var LETTERS = "ABCDE".split("");
+  var KEY = "aib-c01:progreso";
+  var PASS = 72; // umbral orientativo (%) equivalente a los 700/1000 del examen
+
+  // ---------------------------------------------------------------- estado
+  var save = {hist:[], stats:{}, extra:[]};   // stats: {id:{v:vistas, f:fallos}}
+  var bank = BANK.slice();
+  var ses = null;                              // sesión en curso
+  var tick = null;
+  var app = document.getElementById("app");
+
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+  function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+  function byId(id){for(var i=0;i<bank.length;i++){if(bank[i].id===id)return bank[i];}return null;}
+  function statOf(id){return save.stats[id]||{v:0,f:0};}
+
+  function domPct(d){
+    var v=0,f=0;
+    for(var i=0;i<bank.length;i++){
+      if(bank[i].dom!==d)continue;
+      var s=statOf(bank[i].id); v+=s.v; f+=s.f;
+    }
+    return v? Math.round((v-f)/v*100) : null;
+  }
+
+  // ---------------------------------------------------------------- persistencia
+  function load(){
+    if(!window.storage || !window.storage.get){ render(); return; }
+    window.storage.get(KEY).then(function(r){
+      if(r && r.value){
+        try{
+          var d=JSON.parse(r.value);
+          save.hist = d.hist||[]; save.stats = d.stats||{}; save.extra = d.extra||[];
+          bank = BANK.concat(save.extra);
+        }catch(e){}
+      }
+      render();
+    }).catch(function(){ render(); });
+  }
+  function persist(){
+    if(!window.storage || !window.storage.set) return Promise.resolve(false);
+    return window.storage.set(KEY, JSON.stringify(save)).then(function(){return true;}).catch(function(){return false;});
+  }
+
+  // ---------------------------------------------------------------- sesiones
+  function build(mode, dom){
+    var pool;
+    if(mode==="dominio"){ pool = shuffle(bank.filter(function(q){return q.dom===dom;})); }
+    else if(mode==="fallos"){
+      pool = bank.filter(function(q){return statOf(q.id).f>0;});
+      pool.sort(function(a,b){return statOf(b.id).f - statOf(a.id).f;});
+      pool = pool.slice(0,20);
+    }
+    else if(mode==="rapida"){ pool = weighted(10); }
+    else { pool = weighted(bank.length); }   // simulacro
+    return pool;
+  }
+  // muestreo ponderado por el peso de cada dominio en el examen
+  function weighted(n){
+    var out=[], by={1:[],2:[],3:[],4:[]};
+    bank.forEach(function(q){ by[q.dom].push(q); });
+    [1,2,3,4].forEach(function(d){
+      shuffle(by[d]);
+      var k = Math.min(by[d].length, Math.round(n*DOMS[d].w/100));
+      out = out.concat(by[d].slice(0,k));
+    });
+    if(out.length<n){
+      var rest = shuffle(bank.filter(function(q){return out.indexOf(q)<0;}));
+      out = out.concat(rest.slice(0, n-out.length));
+    }
+    return shuffle(out).slice(0,n);
+  }
+
+  function start(mode, dom){
+    var qs = build(mode, dom);
+    if(!qs.length){ return; }
+    ses = {
+      mode:mode, dom:dom, qs:qs, i:0, sel:[], shown:false,
+      res:[],                       // true/false por pregunta
+      timed: mode==="simulacro",
+      left: qs.length*120,          // 2 min por pregunta, como el examen real
+      done:false
+    };
+    if(ses.timed){
+      tick = setInterval(function(){
+        if(!ses||ses.done){clearInterval(tick);return;}
+        ses.left--;
+        var el=document.getElementById("clock");
+        if(el) el.textContent = clockStr();
+        if(ses.left<=0){ clearInterval(tick); finish(); }
+      },1000);
+    }
+    render();
+  }
+  function clockStr(){
+    var s=Math.max(0,ses.left), m=Math.floor(s/60);
+    return m+":"+String(s%60).padStart(2,"0");
+  }
+
+  function toggle(i){
+    var q = ses.qs[ses.i];
+    if(ses.shown) return;
+    if(q.t==="m"){
+      var p = ses.sel.indexOf(i);
+      if(p<0) ses.sel.push(i); else ses.sel.splice(p,1);
+    } else {
+      ses.sel = [i];
+    }
+    render();
+  }
+  function check(){
+    var q = ses.qs[ses.i];
+    var a = ses.sel.slice().sort().join(","), b = q.ok.slice().sort().join(",");
+    var ok = a===b && a!=="";
+    ses.res.push(ok);
+    var s = statOf(q.id);
+    save.stats[q.id] = {v:s.v+1, f:s.f+(ok?0:1)};
+    if(ses.timed){ next(); } else { ses.shown = true; render(); }
+  }
+  function next(){
+    ses.i++; ses.sel=[]; ses.shown=false;
+    if(ses.i>=ses.qs.length){ finish(); } else { render(); }
+  }
+  function finish(){
+    if(tick) clearInterval(tick);
+    ses.done = true;
+    var ok = ses.res.filter(Boolean).length;
+    var pct = ses.res.length? Math.round(ok/ses.res.length*100) : 0;
+    var per = {};
+    [1,2,3,4].forEach(function(d){
+      var t=0,c=0;
+      ses.qs.forEach(function(q,idx){
+        if(q.dom!==d || idx>=ses.res.length) return;
+        t++; if(ses.res[idx]) c++;
+      });
+      if(t) per[d] = Math.round(c/t*100);
+    });
+    save.hist.unshift({f:new Date().toISOString(), m:ses.mode, p:pct, n:ses.res.length, per:per});
+    save.hist = save.hist.slice(0,30);
+    ses.pct = pct; ses.per = per;
+    persist().then(function(okSaved){ ses.saved = okSaved; render(); });
+    render();
+  }
+  function home(){ if(tick) clearInterval(tick); ses=null; render(); }
+
+  // ---------------------------------------------------------------- importar
+  function importJSON(){
+    var ta = document.getElementById("imp");
+    var msg = document.getElementById("impmsg");
+    var raw = ta.value.trim();
+    if(!raw){ msg.className="msg err"; msg.textContent="Pega primero el bloque de preguntas."; return; }
+    var arr;
+    try{ arr = JSON.parse(raw); }catch(e){ msg.className="msg err"; msg.textContent="No se pudo leer el texto: revisa que sea JSON válido."; return; }
+    if(!Array.isArray(arr)) arr=[arr];
+    var add=[], bad=0;
+    arr.forEach(function(q){
+      if(q && q.id && q.q && Array.isArray(q.o) && Array.isArray(q.ok) && q.dom>=1 && q.dom<=4 && !byId(q.id)){
+        q.t = q.t==="m" ? "m" : "s";
+        add.push(q);
+      } else bad++;
+    });
+    if(!add.length){ msg.className="msg err"; msg.textContent="Ninguna pregunta nueva válida ("+bad+" descartadas o repetidas)."; return; }
+    save.extra = save.extra.concat(add);
+    bank = BANK.concat(save.extra);
+    persist().then(function(ok){
+      msg.className = ok? "msg":"msg err";
+      msg.textContent = ok
+        ? add.length+" preguntas añadidas. El banco tiene ahora "+bank.length+"."+(bad?" ("+bad+" descartadas)":"")
+        : "Preguntas añadidas a esta sesión, pero no se han podido guardar.";
+      ta.value="";
+      setTimeout(render, 1200);
+    });
+  }
+  function wipe(){
+    save = {hist:[],stats:{},extra:[]};
+    bank = BANK.slice();
+    persist().then(render);
+  }
+
+  // ---------------------------------------------------------------- vistas
+  function render(){
+    if(!ses){ app.innerHTML = viewHome(); bindHome(); }
+    else if(ses.done){ app.innerHTML = viewResults(); bindResults(); }
+    else { app.innerHTML = viewQuestion(); bindQuestion(); }
+  }
+
+  function viewHome(){
+    var h = '<h1>Entrenador AIB-C01</h1>'+
+            '<p class="sub">AWS Certified AI Business Strategist · '+bank.length+' preguntas en el banco</p>';
+
+    // hero: preparación por dominio
+    h += '<div class="meter">';
+    [1,2,3,4].forEach(function(d){
+      var p = domPct(d);
+      var cls = p===null? "" : (p<60?"low":(p<PASS?"mid":""));
+      h += '<div class="col"><div class="track">'+
+             (p===null? '' : '<div class="fill '+cls+'" style="height:'+p+'%"></div>')+
+             '<div class="thr" style="bottom:'+PASS+'%"></div>'+
+             '<div class="pct">'+(p===null?'—':p+'%')+'</div>'+
+           '</div><div class="cap">'+DOMS[d].s+'<br>'+DOMS[d].w+' %</div></div>';
+    });
+    h += '</div><p class="meter-note">Aciertos acumulados por dominio sobre todas tus respuestas. La línea discontinua marca el '+PASS+' %, equivalente orientativo de los 700 puntos que exige el examen.</p>';
+
+    var fallos = bank.filter(function(q){return statOf(q.id).f>0;}).length;
+    h += '<h2>Entrenar</h2><div class="modes">';
+    h += modeBtn("simulacro","Simulacro cronometrado","Todas las preguntas, 2 min cada una, sin explicaciones hasta el final","Empezar",false);
+    h += modeBtn("rapida","Tanda rápida","10 preguntas ponderadas por el peso de cada dominio","Empezar",false);
+    [1,2,3,4].forEach(function(d){
+      h += '<button class="mode" data-mode="dominio" data-dom="'+d+'"><span><b>Dominio '+d+' · '+esc(DOMS[d].n)+'</b><span>'+
+           bank.filter(function(q){return q.dom===d;}).length+' preguntas · explicación inmediata</span></span><span class="go">Entrenar</span></button>';
+    });
+    h += modeBtn("fallos","Repaso de fallos", fallos? "Las "+Math.min(fallos,20)+" preguntas que más veces has fallado":"Todavía no has fallado ninguna pregunta","Repasar",fallos===0);
+    h += '</div>';
+
+    if(save.hist.length){
+      h += '<div class="hist"><h2 style="margin-top:4px">Últimas sesiones</h2>';
+      save.hist.slice(0,6).forEach(function(s){
+        var d = new Date(s.f);
+        var label = s.m==="dominio"?"Dominio":(s.m==="simulacro"?"Simulacro":(s.m==="fallos"?"Repaso":"Tanda rápida"));
+        h += '<div class="hrow"><span>'+d.toLocaleDateString("es-ES",{day:"numeric",month:"short"})+' · '+label+' · '+s.n+' preguntas</span><b>'+s.p+' %</b></div>';
+      });
+      h += '</div>';
+    }
+
+    h += '<details class="tools"><summary>Añadir preguntas o reiniciar el historial</summary>'+
+         '<p style="font-size:12.5px;color:var(--muted);margin:10px 0 0">Pega aquí el bloque de preguntas nuevas que te genere Claude. Se guardan junto al banco original.</p>'+
+         '<textarea id="imp" placeholder="[ { &quot;id&quot;: &quot;d2-13&quot;, &quot;dom&quot;: 2, ... } ]"></textarea>'+
+         '<div class="acts" style="margin-top:10px"><button class="btn" id="doimp">Añadir preguntas</button>'+
+         '<button class="btn ghost" id="dowipe">Borrar historial y preguntas añadidas</button></div>'+
+         '<p class="msg" id="impmsg"></p></details>';
+    return h;
+  }
+  function modeBtn(mode,title,sub,cta,dis){
+    return '<button class="mode" data-mode="'+mode+'"'+(dis?" disabled":"")+'><span><b>'+esc(title)+'</b><span>'+esc(sub)+'</span></span><span class="go">'+esc(cta)+'</span></button>';
+  }
+
+  function viewQuestion(){
+    var q = ses.qs[ses.i];
+    var h = '<div class="bar"><span class="dom">Dominio '+q.dom+' · '+esc(DOMS[q.dom].s)+'</span>'+
+            '<span>'+(ses.timed? '<span id="clock">'+clockStr()+'</span> · ' : '')+(ses.i+1)+' de '+ses.qs.length+'</span></div>'+
+            '<div class="prog"><i style="width:'+(ses.i/ses.qs.length*100)+'%"></i></div>';
+    h += '<p class="stem">'+esc(q.q)+'</p>';
+    if(q.t==="m") h += '<p class="instr">Respuesta múltiple: acierta todas las opciones o la pregunta no puntúa.</p>';
+    h += '<div class="opts">';
+    q.o.forEach(function(o,i){
+      var cls="opt";
+      if(ses.shown){
+        if(q.ok.indexOf(i)>=0) cls+=" ok";
+        else if(ses.sel.indexOf(i)>=0) cls+=" bad";
+      } else if(ses.sel.indexOf(i)>=0) cls+=" sel";
+      h += '<button class="'+cls+'" data-i="'+i+'"'+(ses.shown?" disabled":"")+'><span class="k">'+LETTERS[i]+'</span><span>'+esc(o)+'</span></button>';
+    });
+    h += '</div>';
+
+    if(!ses.shown && q.h){
+      h += '<p class="hintline"><button class="hintbtn" id="hint">Ver pista</button></p>';
+    }
+    if(ses.shown){
+      var ok = ses.res[ses.res.length-1];
+      h += '<div class="verdict '+(ok?"ok":"bad")+'"><b>'+(ok?"Correcta":"Incorrecta")+'</b><p>'+esc(q.w)+
+           '</p><span class="ref">Habilidad '+esc(q.hab)+' de la guía oficial</span></div>';
+    }
+    h += '<div class="acts">';
+    if(!ses.shown) h += '<button class="btn" id="check"'+(ses.sel.length?"":" disabled")+'>'+(ses.timed?"Siguiente":"Comprobar")+'</button>';
+    else h += '<button class="btn" id="next">'+(ses.i+1>=ses.qs.length?"Ver resultado":"Siguiente")+'</button>';
+    h += '<button class="btn ghost" id="quit">Salir</button></div>';
+    return h;
+  }
+
+  function viewResults(){
+    var ok = ses.res.filter(Boolean).length;
+    var pass = ses.pct>=PASS;
+    var h = '<div class="bar"><span class="dom">Resultado</span><span>'+ok+' de '+ses.res.length+'</span></div>'+
+            '<div class="score">'+ses.pct+' %</div>'+
+            '<p class="band '+(pass?"pass":"fail")+'">'+(pass
+              ? "Por encima del umbral orientativo de aprobado."
+              : "Por debajo del umbral orientativo del "+PASS+" %.")+'</p>';
+
+    h += '<table class="dtable">';
+    [1,2,3,4].forEach(function(d){
+      if(ses.per[d]===undefined) return;
+      h += '<tr><td>Dominio '+d+' · '+esc(DOMS[d].s)+'</td>'+
+           '<td style="width:40%"><span class="minibar"><i style="width:'+ses.per[d]+'%"></i></span></td>'+
+           '<td>'+ses.per[d]+' %</td></tr>';
+    });
+    h += '</table>';
+
+    var wrong = [];
+    ses.qs.forEach(function(q,i){ if(ses.res[i]===false) wrong.push(q); });
+    if(wrong.length){
+      h += '<h2>Habilidades a repasar</h2><ul class="weak">';
+      wrong.slice(0,8).forEach(function(q){
+        h += '<li><b>'+esc(q.hab)+'</b> — '+esc(q.q.slice(0,95))+(q.q.length>95?"…":"")+'</li>';
+      });
+      h += '</ul>';
+    } else {
+      h += '<p style="font-size:14px">Sin fallos en esta tanda. Sube la dificultad con el simulacro cronometrado.</p>';
+    }
+    if(ses.saved===false) h += '<p class="hintline">No se ha podido guardar esta sesión en el historial.</p>';
+    h += '<div class="acts"><button class="btn" id="again">Otra tanda</button><button class="btn ghost" id="quit">Volver al inicio</button></div>';
+    return h;
+  }
+
+  // ---------------------------------------------------------------- eventos
+  function bindHome(){
+    Array.prototype.forEach.call(app.querySelectorAll(".mode"), function(b){
+      b.addEventListener("click", function(){
+        start(b.getAttribute("data-mode"), parseInt(b.getAttribute("data-dom"),10));
+      });
+    });
+    var i=document.getElementById("doimp"); if(i) i.addEventListener("click", importJSON);
+    var w=document.getElementById("dowipe"); if(w) w.addEventListener("click", wipe);
+  }
+  function bindQuestion(){
+    Array.prototype.forEach.call(app.querySelectorAll(".opt"), function(b){
+      b.addEventListener("click", function(){ toggle(parseInt(b.getAttribute("data-i"),10)); });
+    });
+    var c=document.getElementById("check"); if(c) c.addEventListener("click", check);
+    var n=document.getElementById("next");  if(n) n.addEventListener("click", next);
+    var q=document.getElementById("quit");  if(q) q.addEventListener("click", home);
+    var hh=document.getElementById("hint");
+    if(hh) hh.addEventListener("click", function(){
+      hh.parentNode.textContent = ses.qs[ses.i].h;
+      hh.parentNode.style.fontStyle = "italic";
+    });
+  }
+  function bindResults(){
+    var a=document.getElementById("again"); if(a) a.addEventListener("click", function(){ start(ses.mode, ses.dom); });
+    var q=document.getElementById("quit");  if(q) q.addEventListener("click", home);
+  }
+
+  load();
+})();
+</script>

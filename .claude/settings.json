@@ -1,0 +1,7 @@
+{
+  "enabledPlugins": {
+    "pyright-lsp@cert-trainer": true,
+    "neon@cert-trainer": true,
+    "render@cert-trainer": true
+  }
+}
