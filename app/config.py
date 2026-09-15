@@ -5,6 +5,24 @@ No se genera una clave aleatoria en silencio.
 """
 import os
 
+# Raíz del proyecto (un nivel por encima de app/), para resolver rutas
+# sqlite relativas nosotros mismos: Flask-SQLAlchemy resuelve
+# "sqlite:///data/app.db" contra app.instance_path (p. ej.
+# /app/instance/data/app.db dentro del contenedor), no contra el
+# directorio de trabajo, y esa carpeta no existe ni se monta en
+# docker-compose.yml. Anclarlo aquí evita el "unable to open database
+# file" y mantiene coherencia entre `flask run` local y Docker.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _resolve_sqlite_url(database_url: str) -> str:
+    prefix = "sqlite:///"
+    if database_url.startswith(prefix) and not database_url.startswith("sqlite:////"):
+        relative_path = database_url[len(prefix):]
+        absolute_path = os.path.join(PROJECT_ROOT, relative_path)
+        return "sqlite:///" + absolute_path.replace(os.sep, "/")
+    return database_url
+
 
 class ConfigError(RuntimeError):
     """Falta una variable de entorno obligatoria."""
@@ -27,7 +45,7 @@ class Config:
         self.ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
 
         database_url = os.environ.get("DATABASE_URL", "sqlite:///data/app.db")
-        self.SQLALCHEMY_DATABASE_URI = database_url
+        self.SQLALCHEMY_DATABASE_URI = _resolve_sqlite_url(database_url)
         self.SQLALCHEMY_ENGINE_OPTIONS = {}
         self.SQLALCHEMY_TRACK_MODIFICATIONS = False
 
