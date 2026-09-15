@@ -29,6 +29,10 @@ Para generar el hash de la contraseña:
 python -c "from werkzeug.security import generate_password_hash as g; print(g(input('contraseña: ')))"
 ```
 
+**Importante al pegarlo en `.env`:** el hash de scrypt lleva `$` como separador (`scrypt:N:r:p$sal$hash`). Docker Compose interpola `$NOMBRE` dentro de los valores de `env_file`, así que cada `$` del hash debe escaparse como `$$` en `.env` — si no, Compose lo trunca silenciosamente y el login falla (con un hash mal formado del todo, incluso puede dar un error 500 en vez de "credenciales incorrectas"). Duplica cada `$` a mano antes de guardar el archivo.
+
+Si el login sigue fallando después de reconstruir, comprueba que no haya otro proceso escuchando en el puerto 8000 (`netstat -ano | findstr ":8000"` en Windows): un `flask run` suelto fuera de Docker, apuntando al mismo `data/app.db`, puede interceptar las peticiones y confundir el diagnóstico.
+
 ## Despliegue
 
 Render, plan gratuito, con base de datos Postgres externa (Neon). Los servicios gratuitos de Render tienen sistema de archivos efímero y sus bases Postgres caducan a los 30 días: por eso la base va fuera. Variables de entorno necesarias: las de `.env.example`.
