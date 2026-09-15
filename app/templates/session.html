@@ -1,8 +1,82 @@
 {% extends "base.html" %}
 {% block title %}Tanda — Entrenador AIB-C01{% endblock %}
 {% block content %}
-  <div id="app"><p class="loading">Cargando…</p></div>
+  <div id="app"><p class="loading">Cargando la tanda…</p></div>
+
+  {# El marcado de la tanda vive aquí, no concatenado dentro de session.js:
+     el JS solo clona estas plantillas y rellena los textos. Rediseñar la
+     pantalla es editar HTML, y los textos del banco entran por textContent,
+     así que no hay escapado manual que se pueda olvidar. #}
+
+  <template id="tpl-question">
+    <div class="q">
+      <div class="bar">
+        <span class="dom"></span>
+        <span>
+          <span class="clock tabular" hidden></span>
+          <span class="count tabular"></span>
+        </span>
+      </div>
+      <div class="prog"><i></i></div>
+      <p class="stem"></p>
+      <p class="instr" hidden>Respuesta múltiple: hay que acertar todas las opciones correctas.</p>
+      <div class="opts"></div>
+      <p class="hintline" hidden><button type="button" class="hintbtn">Ver pista</button></p>
+      <div class="verdict-slot"></div>
+      <div class="acts">
+        <button type="button" class="btn" data-act="check" disabled>Comprobar</button>
+        <button type="button" class="btn plain" data-act="quit">Salir y guardar</button>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-option">
+    <button type="button" class="opt"><span class="k"></span><span class="txt"></span></button>
+  </template>
+
+  <template id="tpl-verdict">
+    <div class="verdict">
+      <b></b>
+      <p></p>
+      <span class="ref"></span>
+    </div>
+  </template>
+
+  <template id="tpl-results">
+    <div>
+      <div class="head">
+        <h1>Resultado</h1>
+        <p class="sub"></p>
+      </div>
+      <div class="card">
+        <div class="score tabular">0 %</div>
+        <p class="band"></p>
+      </div>
+      <h2 class="section-title">Por dominio</h2>
+      <div class="card"><div class="dgrid"></div></div>
+      <div class="acts">
+        <button type="button" class="btn" data-act="again">Otra tanda</button>
+        <a class="btn plain" href="{{ url_for('practice.home') }}">Volver al inicio</a>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-domain-row">
+    <div class="drow">
+      <span class="name"></span>
+      <span class="minibar"><i></i></span>
+      <span class="val tabular"></span>
+    </div>
+  </template>
+
+  <template id="tpl-error">
+    <div>
+      <p class="error"></p>
+      <div class="acts"><a class="btn tinted" href="{{ url_for('practice.home') }}">Volver al inicio</a></div>
+    </div>
+  </template>
 {% endblock %}
+
 {% block scripts %}
 <script>
   window.APP_URLS = {
@@ -12,6 +86,7 @@
     finish: "{{ url_for('api.finish') }}",
     home: "{{ url_for('practice.home') }}"
   };
+  window.PASS_THRESHOLD = {{ pass_threshold }};
 </script>
 <script src="{{ url_for('static', filename='js/session.js') }}"></script>
 {% endblock %}
