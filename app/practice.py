@@ -1,9 +1,16 @@
 """Vistas de página: inicio, sesión de práctica, historial."""
-from flask import Blueprint, render_template
+from flask import Blueprint, flash, redirect, render_template, url_for
 from flask_login import login_required
 
 from app.models import Question, StudySession
-from app.sampling import DOMAIN_NAMES, DOMAIN_WEIGHTS, PASS_THRESHOLD_PCT, domain_readiness
+from app.progress import reset_progress
+from app.sampling import (
+    DOMAIN_NAMES,
+    DOMAIN_SHORT,
+    DOMAIN_WEIGHTS,
+    PASS_THRESHOLD_PCT,
+    domain_readiness,
+)
 
 bp = Blueprint("practice", __name__)
 
@@ -33,6 +40,7 @@ def home():
         "home.html",
         readiness=readiness,
         domain_names=DOMAIN_NAMES,
+        domain_short=DOMAIN_SHORT,
         domain_weights=DOMAIN_WEIGHTS,
         question_counts=question_counts,
         total_questions=total_questions,
@@ -45,4 +53,20 @@ def home():
 @bp.route("/tanda")
 @login_required
 def session_view():
-    return render_template("session.html")
+    return render_template("session.html", pass_threshold=PASS_THRESHOLD_PCT)
+
+
+@bp.route("/reiniciar-progreso", methods=["POST"])
+@login_required
+def reset_progress_view():
+    """Borra sesiones e intentos. El banco de preguntas no se toca."""
+    removed = reset_progress()
+    if removed["attempts"] or removed["sessions"]:
+        flash(
+            f"Progreso borrado: {removed['sessions']} sesiones y "
+            f"{removed['attempts']} respuestas. Las preguntas del banco siguen intactas.",
+            "ok",
+        )
+    else:
+        flash("No había ningún progreso que borrar.", "ok")
+    return redirect(url_for("practice.home"))

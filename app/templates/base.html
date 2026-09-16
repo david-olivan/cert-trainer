@@ -2,20 +2,45 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#EFF2F3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0A0D0F" media="(prefers-color-scheme: dark)">
   <title>{% block title %}Entrenador AIB-C01{% endblock %}</title>
+  {# Favicon en línea: evita una petición 404 en cada carga sin añadir un
+     binario al repositorio. #}
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230F6E74'/%3E%3Cpath d='M9 17l4.5 4.5L23 12' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body>
-  <div class="aib"><div class="wrap">
-    {% if current_user.is_authenticated %}
-      <form action="{{ url_for('auth.logout') }}" method="post" style="text-align:right;margin-bottom:8px">
-        <button type="submit" class="btn ghost" style="padding:4px 10px;font-size:12px">Salir</button>
-      </form>
-    {% endif %}
+  {% if current_user.is_authenticated %}
+    <header class="chrome">
+      <div class="chrome-in">
+        <a class="chrome-title" href="{{ url_for('practice.home') }}">Entrenador <span>AIB-C01</span></a>
+        <nav class="chrome-acts">
+          <a class="chip" href="{{ url_for('questions_admin.index') }}">Preguntas</a>
+          <form method="post" action="{{ url_for('practice.reset_progress_view') }}"
+                onsubmit="return confirm('Se borrarán todas tus sesiones y respuestas. El banco de preguntas no se toca. Esta acción no se puede deshacer. ¿Continuar?')">
+            <button type="submit" class="chip danger">Reiniciar</button>
+          </form>
+          <form method="post" action="{{ url_for('auth.logout') }}">
+            <button type="submit" class="chip">Salir</button>
+          </form>
+        </nav>
+      </div>
+    </header>
+  {% endif %}
+
+  <main class="page {% block page_class %}{% endblock %}">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div>{% for m in messages %}<p class="flash">{{ m }}</p>{% endfor %}</div>
+      {% endif %}
+    {% endwith %}
     {% block content %}{% endblock %}
-  </div></div>
+  </main>
+
   {% block scripts %}{% endblock %}
 </body>
 </html>

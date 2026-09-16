@@ -1,19 +1,30 @@
 {% extends "base.html" %}
 {% block title %}Acceso — Entrenador AIB-C01{% endblock %}
+{% block page_class %}center{% endblock %}
 {% block content %}
-  <h1>Entrenador AIB-C01</h1>
-  <p class="sub">Preparación para AWS Certified AI Business Strategist</p>
+  <div class="auth">
+    <div class="head">
+      <h1>Entrenador AIB-C01</h1>
+      <p class="sub">Preparación para AWS Certified AI Business Strategist</p>
+    </div>
 
-  <form class="login-form" method="post" action="{{ url_for('auth.login') }}">
-    <div>
-      <label for="username">Usuario</label>
-      <input type="text" id="username" name="username" autocomplete="username" autofocus>
+    <div class="card pad-lg">
+      <form method="post" action="{{ url_for('auth.login') }}">
+        <div class="fields">
+          <div class="field">
+            <label for="username">Usuario</label>
+            <input type="text" id="username" name="username" autocomplete="username"
+                   autocapitalize="none" spellcheck="false" placeholder="tu usuario" autofocus>
+          </div>
+          <div class="field">
+            <label for="password">Contraseña</label>
+            <input type="password" id="password" name="password"
+                   autocomplete="current-password" placeholder="••••••••" required>
+          </div>
+        </div>
+        <button type="submit" class="btn block">Entrar</button>
+      </form>
+      {% if error %}<p class="error">{{ error }}</p>{% endif %}
     </div>
-    <div>
-      <label for="password">Contraseña</label>
-      <input type="password" id="password" name="password" autocomplete="current-password" required>
-    </div>
-    <button type="submit" class="btn">Entrar</button>
-  </form>
-  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  </div>
 {% endblock %}
