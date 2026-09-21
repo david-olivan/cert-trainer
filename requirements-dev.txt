@@ -1,0 +1,4 @@
+# Solo para la batería de humo que corre en CI y en local. No entra en la
+# imagen de producción.
+-r requirements.txt
+pytest==9.1.1

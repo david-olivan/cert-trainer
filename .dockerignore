@@ -1,0 +1,21 @@
+# Sin esto, `COPY . .` mete el .env con SECRET_KEY y el hash de la
+# contraseña dentro de la imagen, además de la base local y el historial
+# de git. data/questions.seed.json sí tiene que entrar: es lo que lee
+# `flask db-seed` al arrancar en producción.
+.env
+.env.*
+!.env.example
+data/app.db
+data/*.db
+.git
+.gitignore
+.github
+.venv
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.claude
+tests
+docker-compose.yml
+reference/entrenador-artefacto.html

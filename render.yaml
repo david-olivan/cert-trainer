@@ -1,0 +1,41 @@
+# Blueprint de Render. La base de datos NO se declara aquí a propósito:
+# las Postgres gratuitas de Render caducan a los 30 días, así que la base
+# vive en Neon y llega por DATABASE_URL (ver CLAUDE.md).
+services:
+  - type: web
+    name: cert-trainer
+    runtime: docker
+    plan: free
+    # Fráncfort es la región europea más cercana; conviene crear la base
+    # de Neon en eu-central-1 para no cruzar el Atlántico en cada consulta.
+    region: frankfurt
+    branch: main
+    dockerfilePath: ./Dockerfile
+    # docker-start.sh migra y siembra antes de arrancar gunicorn. El plan
+    # gratuito no tiene preDeployCommand, por eso va dentro del arranque.
+    healthCheckPath: /healthz
+    # Nada se despliega por el mero hecho de empujar a main: el despliegue
+    # lo dispara el workflow de GitHub Actions cuando la batería de humo
+    # pasa. Ver .github/workflows/ci.yml.
+    autoDeployTrigger: "off"
+    envVars:
+      - key: SECRET_KEY
+        # Render la genera una vez al crear el servicio y la conserva.
+        # Si se regenera a mano, se cierran todas las sesiones recordadas.
+        generateValue: true
+      - key: ADMIN_PASSWORD_HASH
+        # Secreto: se pega a mano en el panel. Aquí va el hash completo,
+        # sin duplicar los '$' — ese escape solo hace falta en .env, que
+        # lo lee Docker Compose.
+        sync: false
+      - key: DATABASE_URL
+        # La cadena de Neon, tal cual la da el panel. app/config.py la
+        # reescribe a postgresql+psycopg:// al arrancar.
+        sync: false
+      - key: FORCE_HTTPS
+        value: "true"
+      - key: FLASK_ENV
+        value: production
+      - key: WEB_CONCURRENCY
+        # Dos workers entran de sobra en los 512 MB del plan gratuito.
+        value: "2"

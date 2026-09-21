@@ -1,0 +1,147 @@
+# Batería de humo y despliegue. Nada llega a Render sin pasar por aquí:
+# render.yaml lleva autoDeployTrigger "off" a propósito.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pruebas:
+    name: Pruebas contra Postgres
+    runs-on: ubuntu-latest
+
+    services:
+      # Postgres de verdad, no sqlite: el objetivo de esta batería es
+      # detectar lo que solo falla contra Postgres, empezando por el
+      # driver de la cadena de conexión.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: entrenador
+          POSTGRES_PASSWORD: entrenador
+          POSTGRES_DB: entrenador
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Sin driver explícito, igual que la da Neon: si app/config.py deja
+      # de reescribirla, las pruebas fallan aquí y no en producción.
+      TEST_DATABASE_URL: postgresql://entrenador:entrenador@localhost:5432/entrenador
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements-dev.txt
+
+      - name: Pruebas
+        run: pytest -q
+
+  imagen:
+    name: La imagen construye y sirve
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: entrenador
+          POSTGRES_PASSWORD: entrenador
+          POSTGRES_DB: entrenador
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir la imagen
+        run: docker build -t cert-trainer:ci .
+
+      - name: Generar el hash de la contraseña de humo
+        # Con el mismo werkzeug que usa la aplicación, en vez de armar la
+        # cadena a mano: así la prueba de acceso de más abajo comprueba de
+        # verdad el camino de check_password_hash.
+        run: |
+          pip install "Werkzeug==3.1.8"
+          python -c "from werkzeug.security import generate_password_hash as g; print(g('humo'))" > hash.txt
+
+      - name: Arrancar el contenedor como en producción
+        run: |
+          docker run -d --name entrenador --network host \
+            -e SECRET_KEY=clave-de-humo \
+            -e ADMIN_PASSWORD_HASH="$(cat hash.txt)" \
+            -e DATABASE_URL=postgresql://entrenador:entrenador@localhost:5432/entrenador \
+            -e PORT=8000 \
+            cert-trainer:ci
+
+      - name: Esperar a que responda
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/healthz > /dev/null; then
+              echo "Arriba tras ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "No respondió en 30s. Registro del contenedor:"
+          docker logs entrenador
+          exit 1
+
+      - name: Comprobar que migró, sembró, deja entrar y protege las rutas
+        run: |
+          set -e
+          # El acceso se pinta.
+          curl -fsS http://localhost:8000/login | grep -q "<form"
+
+          # La portada redirige a quien no ha entrado.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/)" = "302"
+
+          # Y con la contraseña buena se entra: esto es lo que de verdad
+          # falla cuando el usuario único no se ha sembrado en la base.
+          curl -fsS -c galletas.txt -o /dev/null http://localhost:8000/login
+          codigo=$(curl -s -b galletas.txt -c galletas.txt -o /dev/null -w '%{http_code}' \
+            -d "username=admin" -d "password=humo" http://localhost:8000/login)
+          test "$codigo" = "302" || { echo "El acceso devolvió $codigo, no 302"; exit 1; }
+          test "$(curl -s -b galletas.txt -o /dev/null -w '%{http_code}' http://localhost:8000/)" = "200"
+
+          # El banco está sembrado en Postgres, no vacío.
+          docker exec entrenador flask questions export /tmp/banco.json
+          docker exec entrenador python -c "import json;d=json.load(open('/tmp/banco.json'));assert len(d)>0, 'banco vacio';print(f'{len(d)} preguntas en la base')"
+
+      - name: Registro del contenedor si algo falló
+        if: failure()
+        run: docker logs entrenador
+
+  desplegar:
+    name: Desplegar en Render
+    needs: [pruebas, imagen]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar el despliegue
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "Falta el secreto RENDER_DEPLOY_HOOK_URL."
+            echo "Cópialo del panel de Render (Settings > Deploy Hook) y añádelo"
+            echo "en GitHub: Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          curl -fsS -X POST "$HOOK" && echo "Despliegue solicitado."
