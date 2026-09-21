@@ -63,3 +63,44 @@ def test_no_se_indexa(client):
     assert robots.status_code == 200
     assert b"Disallow: /" in robots.data
     assert "noindex" in robots.headers["X-Robots-Tag"]
+
+
+def test_la_portada_cuenta_los_fallos(app, logged_in):
+    """El recuento de fallos de la portada, con un fallo de verdad en la base.
+
+    Esta consulta hacía un SELECT DISTINCT sobre la entidad Question, que
+    arrastra columnas json; Postgres no sabe compararlas por igualdad y
+    devolvía 500 mientras en sqlite pasaba. Va con datos porque un
+    recuento a cero puede salir bien por accidente.
+    """
+    from app.extensions import db
+    from app.models import Attempt, Question, StudySession
+
+    with app.app_context():
+        pregunta = Question.query.filter_by(active=True).first()
+        tanda = StudySession(mode="rapida", question_count=1)
+        db.session.add(tanda)
+        db.session.commit()
+        db.session.add(
+            Attempt(
+                question_id=pregunta.id,
+                session_id=tanda.id,
+                selected=[0],
+                is_correct=False,
+                seconds_spent=30,
+            )
+        )
+        db.session.commit()
+        attempt_id = Attempt.query.order_by(Attempt.id.desc()).first().id
+        tanda_id = tanda.id
+
+    try:
+        respuesta = logged_in.get("/")
+        assert respuesta.status_code == 200, respuesta.data[:400]
+        # La pregunta fallada tiene que aparecer contada como repasable.
+        assert b"1" in respuesta.data
+    finally:
+        with app.app_context():
+            db.session.delete(db.session.get(Attempt, attempt_id))
+            db.session.delete(db.session.get(StudySession, tanda_id))
+            db.session.commit()
