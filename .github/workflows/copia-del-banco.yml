@@ -1,0 +1,74 @@
+# Copia de seguridad del banco de preguntas.
+#
+# Es el único contenido irreemplazable del proyecto (CLAUDE.md) y, una vez
+# desplegado, vive solo en una base de Neon del plan gratuito, que no tiene
+# recuperación a un punto en el tiempo digna de ese nombre. Esto lo baja
+# cada semana y lo versiona en el repositorio.
+name: Copia del banco
+
+on:
+  schedule:
+    # Lunes a las 05:17 UTC. Minuto raro a propósito: en punto es cuando
+    # GitHub encola más trabajos y más se retrasan.
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  exportar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Exportar el banco desde producción
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # El exportador solo lee preguntas, pero Config las exige para
+          # construirse. Valores de usar y tirar: no se guarda nada.
+          SECRET_KEY: copia-de-seguridad
+          ADMIN_PASSWORD_HASH: sin-uso
+          FLASK_APP: app:create_app
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "Falta el secreto DATABASE_URL (la cadena de Neon)."
+            echo "Añádelo en Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          flask questions export data/questions.backup.json
+
+      - name: Comprobar que la exportación trae preguntas
+        # Sin esto, una base vacía o un fallo a medias sobrescribiría la
+        # copia buena con un array vacío, que es justo el desastre del que
+        # esto nos protege.
+        run: |
+          python - <<'PY'
+          import json, sys
+          with open("data/questions.backup.json", encoding="utf-8") as f:
+              banco = json.load(f)
+          if not isinstance(banco, list) or len(banco) < 1:
+              sys.exit("La exportación vino vacía: no se sobrescribe la copia anterior.")
+          print(f"{len(banco)} preguntas exportadas.")
+          PY
+
+      - name: Versionar la copia si ha cambiado
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- data/questions.backup.json; then
+            echo "El banco no ha cambiado desde la última copia."
+            exit 0
+          fi
+          total=$(python -c "import json;print(len(json.load(open('data/questions.backup.json', encoding='utf-8'))))")
+          git add data/questions.backup.json
+          git commit -m "chore: copia del banco de preguntas ($total preguntas)"
+          git push

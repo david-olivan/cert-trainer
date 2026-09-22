@@ -1,8 +1,10 @@
 """Vistas de página: inicio, sesión de práctica, historial."""
 from flask import Blueprint, flash, redirect, render_template, url_for
 from flask_login import login_required
+from sqlalchemy import distinct, func
 
-from app.models import Question, StudySession
+from app.extensions import db
+from app.models import Attempt, Question, StudySession
 from app.progress import reset_progress
 from app.sampling import (
     DOMAIN_NAMES,
@@ -23,11 +25,19 @@ def home():
         d: Question.query.filter_by(active=True, domain=d).count() for d in DOMAIN_WEIGHTS
     }
     total_questions = sum(question_counts.values())
+    # Cuenta preguntas distintas falladas contando identificadores, no filas
+    # enteras. Un SELECT DISTINCT sobre la entidad Question arrastra las
+    # columnas `options` y `correct`, que son json, y Postgres no sabe
+    # comparar ese tipo por igualdad: la portada devolvía 500 en
+    # producción mientras en sqlite pasaba sin queja.
+    # Se filtra por active, como hace build_queue("fallos"), para que el
+    # número de la portada sea el de las preguntas que el modo va a servir.
     failed_count = (
-        Question.query.join(Question.attempts)
-        .filter_by(is_correct=False)
-        .distinct()
-        .count()
+        db.session.query(func.count(distinct(Attempt.question_id)))
+        .select_from(Attempt)
+        .join(Question, Attempt.question_id == Question.id)
+        .filter(Attempt.is_correct.is_(False), Question.active.is_(True))
+        .scalar()
     )
     history = (
         StudySession.query.filter(StudySession.finished_at.isnot(None))

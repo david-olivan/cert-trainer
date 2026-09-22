@@ -78,6 +78,35 @@ Un campo de texto libre que persiste junto a la pregunta, visible al repasarla. 
 
 ---
 
+## Deuda técnica conocida
+
+Ninguna rompe nada hoy. Están aquí para que, cuando toquen, no haya que diagnosticarlas desde cero.
+
+### El aviso de `get_engine()` en las migraciones es ruido, no deuda
+
+Cada vez que corren las migraciones sale un `DeprecationWarning`: `migrations/env.py` llama a `db.get_engine()`, que Flask-SQLAlchemy retira en la versión 3.2. **No hay nada que arreglar.** Es el `env.py` que genera Flask-Migrate y ya trae un `try/except` que cae a `db.engine` cuando la primera llamada falla, que es justo lo que pasará al subir a 3.2.
+
+Queda apuntado para que nadie vuelva a investigarlo al verlo en los registros de CI ni «lo arregle» tocando código generado.
+
+### La cola de la tanda viaja en la cookie de sesión
+
+`app/api.py` guarda en la sesión de Flask la lista de preguntas, el reordenamiento de opciones de cada una y los resultados. Está bien decidido —así el JavaScript no puede leer la respuesta correcta inspeccionando la red—, pero la sesión de Flask es una cookie firmada, y los navegadores cortan las cookies en 4 KB.
+
+Lo que importa es que el simulacro muestrea *todas* las preguntas activas, así que la cookie crece con el banco sin que nadie lo decida. Medido con el serializador real de Flask y con `ext_id` del formato que se usa (`d1-01`), que Flask comprime con zlib antes de firmar:
+
+| Preguntas en el banco | Tamaño de la cookie |
+|---|---|
+| 44 (hoy) | 623 B |
+| 200 | 1,9 kB |
+| 400 | 3,6 kB |
+| 444 | ~4 kB, el límite |
+
+O sea: hay sitio de sobra y el problema no es para mañana. Se apunta porque el día que llegue no avisa — el navegador descarta la cookie en silencio y el síntoma es un simulacro que sale en blanco o que pierde la sesión a mitad, no un error que diga qué pasa.
+
+Cuando el banco pase de las 300 preguntas, mover el estado de la cola a una tabla, referenciada desde la sesión por el `id` de `StudySession`, que ya existe. Para reproducir la medición: serializar el diccionario que arma `/api/session/start` con `SecureCookieSessionInterface` y mirar cuánto ocupa.
+
+---
+
 ## Fuera de alcance
 
 Registro de usuarios, recuperación de contraseña, roles, aplicación móvil nativa, generación de preguntas dentro de la aplicación, integración con la API de Anthropic, estadísticas comparativas con otros candidatos, gamificación con rachas o insignias.
