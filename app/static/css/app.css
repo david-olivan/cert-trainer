@@ -450,11 +450,15 @@ button.row:hover .chev { transform: rotate(-45deg) translate(2px, 2px); }
   overflow: hidden;
   margin-bottom: var(--s-6);
 }
+/* El relleno ocupa siempre todo el carril: el degradado de topes duros que
+   pinta session.js da un tramo por pregunta, y el recorte por la derecha es
+   lo que marca hasta dónde se ha avanzado. */
 .prog i {
   display: block;
   height: 100%;
-  width: 0;
-  background: var(--accent);
+  width: 100%;
+  background-color: transparent;
+  clip-path: inset(0 100% 0 0);
   border-radius: var(--r-full);
 }
 
@@ -523,6 +527,17 @@ button.row:hover .chev { transform: rotate(-45deg) translate(2px, 2px); }
 .opt.ok .k { background: var(--green); border-color: var(--green); color: #fff; }
 .opt.bad { border-color: var(--red); background: var(--red-soft); }
 .opt.bad .k { background: var(--red); border-color: var(--red); color: #fff; }
+
+/* Pista de atajos: sobra donde no hay teclado físico. */
+.keyhint {
+  margin-top: var(--s-3);
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  text-align: center;
+}
+@media (hover: none) {
+  .keyhint { display: none; }
+}
 
 .hintline { margin-top: var(--s-4); font-size: var(--fs-foot); color: var(--ink-2); }
 .hintline.revealed { font-style: italic; }
@@ -646,7 +661,8 @@ button.row:hover .chev { transform: rotate(-45deg) translate(2px, 2px); }
   border-radius: var(--r-full);
 }
 @media (prefers-reduced-motion: no-preference) {
-  .prog i, .minibar i { transition: width var(--t-med) var(--ease); }
+  .prog i { transition: clip-path var(--t-med) var(--ease); }
+  .minibar i { transition: width var(--t-med) var(--ease); }
 }
 
 /* ===========================================================================

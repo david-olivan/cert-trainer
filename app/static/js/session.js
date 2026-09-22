@@ -7,7 +7,6 @@
 (function () {
   "use strict";
 
-  var LETTERS = "ABCDEFGH".split("");
   var DOMAIN_SHORT = { 1: "Fundamentos", 2: "Estrategia", 3: "Gobernanza", 4: "Transformación" };
   var PASS = window.PASS_THRESHOLD || 72;
 
@@ -24,6 +23,10 @@
     question: null,
     index: 0,
     total: 0,
+    // Aciertos y fallos de las preguntas ya respondidas, en orden. Solo
+    // sirve para colorear la barra de progreso: el veredicto lo sigue
+    // dictando el servidor pregunta a pregunta.
+    results: [],
     sel: [],
     shown: false,
     verdict: null,
@@ -85,6 +88,7 @@
     post(window.APP_URLS.start, { mode: mode, domain: domain })
       .then(function (data) {
         state.total = data.total;
+        state.results = [];
         if (state.timed) {
           state.secondsLeft = data.total * data.minutes_per_question * 60;
           startTicker();
@@ -146,6 +150,7 @@
       verdictSlot: node.querySelector(".verdict-slot"),
       check: node.querySelector('[data-act="check"]'),
       quit: node.querySelector('[data-act="quit"]'),
+      keyhint: node.querySelector(".keyhint"),
     };
 
     view.dom.textContent = "Dominio " + q.domain + " · " + (q.domain_short || DOMAIN_SHORT[q.domain]);
@@ -158,9 +163,12 @@
     view.instr.hidden = q.type !== "m";
     view.check.textContent = state.timed ? "Siguiente" : "Comprobar";
 
+    view.keyhint.textContent =
+      "Teclas 1–" + q.options.length + " para elegir · espacio para continuar";
+
     q.options.forEach(function (text, i) {
       var opt = tpl("tpl-option");
-      opt.querySelector(".k").textContent = LETTERS[i];
+      opt.querySelector(".k").textContent = i + 1;
       opt.querySelector(".txt").textContent = text;
       opt.addEventListener("click", function () { toggle(i); });
       view.opts.appendChild(opt);
@@ -178,10 +186,27 @@
     view.quit.addEventListener("click", quit);
 
     show(node);
-    // La barra de progreso se anima desde su valor anterior al entrar.
-    requestAnimationFrame(function () {
-      view.prog.style.width = (state.index / state.total * 100) + "%";
+    // La barra de progreso crece al entrar en la pregunta, ya con el color
+    // de cada tramo recorrido.
+    requestAnimationFrame(paintProgress);
+  }
+
+  // Un único elemento a lo ancho de toda la barra, con un degradado de
+  // topes duros: un tramo por pregunta respondida, verde si se acertó y
+  // rojo si se falló. Lo que queda por responder no se pinta, así que se
+  // ve el carril neutro de debajo. El avance se revela recortando por la
+  // derecha, que es lo que da la animación de crecimiento.
+  function paintProgress() {
+    if (!view || !state.total) return;
+    var answered = state.results.length;
+    var step = 100 / state.total;
+    var stops = state.results.map(function (ok, i) {
+      return "var(--" + (ok ? "green" : "red") + ") " +
+        (i * step).toFixed(4) + "% " + ((i + 1) * step).toFixed(4) + "%";
     });
+    view.prog.style.backgroundImage =
+      stops.length ? "linear-gradient(to right, " + stops.join(", ") + ")" : "none";
+    view.prog.style.clipPath = "inset(0 " + (100 - answered * step).toFixed(4) + "% 0 0)";
   }
 
   function paintOptions() {
@@ -216,7 +241,10 @@
     post(window.APP_URLS.answer, { selected: state.sel, seconds_spent: seconds })
       .then(function (data) {
         state.verdict = data;
-        // En simulacro no se muestra la explicación: se encadena la siguiente.
+        // En simulacro tampoco se ve la explicación, pero el servidor sí
+        // devuelve is_correct, así que la barra se colorea igual.
+        state.results.push(data.is_correct);
+        paintProgress();
         if (state.timed) return advance();
         state.shown = true;
         showVerdict();
@@ -334,6 +362,47 @@
     node.querySelector(".error").textContent = err.message;
     show(node);
   }
+
+  /* ---- teclado -------------------------------------------------------- */
+
+  function typingInField(el) {
+    if (!el) return false;
+    return el.isContentEditable ||
+      el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT";
+  }
+
+  // Un único listener para toda la tanda: la pantalla se remonta en cada
+  // pregunta, así que registrarlo en mountQuestion() iría acumulando
+  // escuchas sobre nodos ya descartados. Sale solo cuando no hay pregunta
+  // en pantalla (resultado o error).
+  function onKeydown(e) {
+    if (!view || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (typingInField(e.target)) return;
+
+    if (e.key === " " || e.key === "Spacebar") {
+      // Con el foco en «Salir y guardar» o «Ver pista», el espacio activa
+      // ese botón de forma nativa y es justo lo que se espera: ahí no se
+      // toca nada.
+      var focused = document.activeElement;
+      if (focused === view.quit || focused === view.hintbtn) return;
+      e.preventDefault();
+      // El botón visible ya sabe qué toca (comprobar, siguiente o ver
+      // resultado) y un botón deshabilitado ignora el click, así que no
+      // hace falta repetir aquí ninguna de las dos decisiones.
+      view.check.click();
+      return;
+    }
+
+    if (state.shown || !state.question) return;
+    var n = parseInt(e.key, 10);
+    if (n >= 1 && n <= state.question.options.length) {
+      e.preventDefault();
+      // Mismo camino que el clic, incluido el desmarcado en las múltiples.
+      toggle(n - 1);
+    }
+  }
+
+  document.addEventListener("keydown", onKeydown);
 
   if (!mode) {
     showError(new Error("Falta indicar el modo de práctica. Vuelve al inicio y elige uno."));
