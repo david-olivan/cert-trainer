@@ -7,6 +7,10 @@ on:
     branches: ["**"]
   pull_request:
     branches: [main]
+  # Para redesplegar sin tocar el código: botón «Run workflow» sobre main.
+  # La batería vuelve a correr entera, así que la garantía de más arriba
+  # sigue en pie también cuando el despliegue se lanza a mano.
+  workflow_dispatch:
 
 jobs:
   pruebas:
@@ -131,7 +135,9 @@ jobs:
   desplegar:
     name: Desplegar en Render
     needs: [pruebas, imagen]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - name: Disparar el despliegue
@@ -144,4 +150,37 @@ jobs:
             echo "en GitHub: Settings > Secrets and variables > Actions."
             exit 1
           fi
-          curl -fsS -X POST "$HOOK" && echo "Despliegue solicitado."
+
+          # Sin -f a propósito: con él, un hook caducado se queda en un
+          # «curl: (22)» que no dice qué ha pasado ni cómo arreglarlo.
+          # Así se lee el código y el cuerpo de la respuesta.
+          cuerpo=$(mktemp)
+          codigo=$(curl -sS -o "$cuerpo" -w '%{http_code}' -X POST "$HOOK") || codigo=000
+
+          case "$codigo" in
+            200|201)
+              echo "Despliegue solicitado. Render respondió:"
+              cat "$cuerpo"; echo
+              exit 0
+              ;;
+            000)
+              echo "No se pudo contactar con Render. Puede ser un corte suyo"
+              echo "o una URL mal copiada en RENDER_DEPLOY_HOOK_URL."
+              exit 1
+              ;;
+            404)
+              echo "Render respondió 404: la URL del hook ya no existe."
+              cat "$cuerpo"; echo
+              echo "El hook se regenera al recrear el servicio. Copia el nuevo en"
+              echo "Render (Settings > Deploy Hook) y actualiza el secreto"
+              echo "RENDER_DEPLOY_HOOK_URL en GitHub (Settings > Secrets and"
+              echo "variables > Actions). Luego relanza este workflow desde la"
+              echo "pestaña Actions: no hace falta ningún commit."
+              exit 1
+              ;;
+            *)
+              echo "Render rechazó el hook con HTTP $codigo. Respuesta:"
+              cat "$cuerpo"; echo
+              exit 1
+              ;;
+          esac

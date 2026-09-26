@@ -86,6 +86,8 @@ No hay paso de migración manual: `docker-start.sh` ejecuta `flask db upgrade` y
 
 `render.yaml` lleva `autoDeployTrigger: "off"` a propósito: empujar a `main` no despliega nada por sí solo. El workflow `.github/workflows/ci.yml` construye la imagen, la arranca contra un Postgres real, comprueba que migra, siembra, deja entrar y protege las rutas, y solo entonces llama al hook de despliegue. Si la batería falla, a producción no llega nada.
 
+Para redesplegar sin cambiar nada del código —por ejemplo tras actualizar el secreto del hook, o para reintentar un despliegue que se quedó a medias en Render— está el botón **Run workflow** del workflow CI en la pestaña Actions, eligiendo `main`. Vuelve a correr la batería entera antes de llamar al hook, así que la garantía de arriba se mantiene. No hace falta ningún commit vacío.
+
 ### Copia de seguridad del banco
 
 `.github/workflows/copia-del-banco.yml` exporta el banco desde producción cada lunes y lo versiona en `data/questions.backup.json`. Una vez desplegado, las preguntas viven solo en una base de Neon del plan gratuito, que no tiene recuperación a un punto en el tiempo: esta copia es la red. Se puede lanzar a mano desde la pestaña Actions. Si la exportación viene vacía, el workflow falla en vez de sobrescribir la copia buena.
