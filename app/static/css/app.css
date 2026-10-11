@@ -9,7 +9,7 @@
    Lenguaje visual: macOS/iOS. Superficies elevadas sobre un fondo
    agrupado, hairlines en vez de bordes de 1px, radios generosos, listas
    agrupadas, y una única tinta de acento (el teal heredado del
-   prototipo). Claro y oscuro con prefers-color-scheme.
+   prototipo). Claro y oscuro: ver el bloque :root[data-theme="dark"].
    =========================================================================== */
 
 :root {
@@ -85,42 +85,47 @@
 
   --chrome-h: 52px;
   --measure: 720px;
+
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0A0D0F;
-    --bg-elevated: #15191C;
-    --surface: #15191C;
-    --surface-2: #1C2124;
-    --surface-hover: #21262A;
-    --surface-active: #272D31;
+/* Modo oscuro. Lo activa data-theme="dark" en <html>, que pone un script en
+   <head> antes de pintar: el tema elegido con el botón de la barra (#35) o,
+   si no se ha elegido, el del sistema. Así hay un solo bloque de tokens
+   oscuros y el botón puede imponerse al sistema en los dos sentidos. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0A0D0F;
+  --bg-elevated: #15191C;
+  --surface: #15191C;
+  --surface-2: #1C2124;
+  --surface-hover: #21262A;
+  --surface-active: #272D31;
 
-    --ink: #F1F4F5;
-    --ink-2: #9AA6AD;
-    --ink-3: #6C787F;
+  --ink: #F1F4F5;
+  --ink-2: #9AA6AD;
+  --ink-3: #6C787F;
 
-    --hairline: rgba(255, 255, 255, 0.10);
-    --hairline-strong: rgba(255, 255, 255, 0.18);
+  --hairline: rgba(255, 255, 255, 0.10);
+  --hairline-strong: rgba(255, 255, 255, 0.18);
 
-    --accent: #45B8BE;
-    --accent-hover: #5DCBD0;
-    --accent-on: #04211F;
-    --accent-soft: rgba(69, 184, 190, 0.14);
-    --accent-soft-strong: rgba(69, 184, 190, 0.22);
+  --accent: #45B8BE;
+  --accent-hover: #5DCBD0;
+  --accent-on: #04211F;
+  --accent-soft: rgba(69, 184, 190, 0.14);
+  --accent-soft-strong: rgba(69, 184, 190, 0.22);
 
-    --green: #3FC189;
-    --green-soft: rgba(63, 193, 137, 0.14);
-    --red: #FF6F60;
-    --red-soft: rgba(255, 111, 96, 0.14);
-    --amber: #E3B547;
-    --amber-soft: rgba(227, 181, 71, 0.16);
+  --green: #3FC189;
+  --green-soft: rgba(63, 193, 137, 0.14);
+  --red: #FF6F60;
+  --red-soft: rgba(255, 111, 96, 0.14);
+  --amber: #E3B547;
+  --amber-soft: rgba(227, 181, 71, 0.16);
 
-    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 0.5px rgba(255, 255, 255, 0.06);
-    --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.35), 0 0 0 0.5px rgba(255, 255, 255, 0.07);
-    --shadow-3: 0 16px 48px rgba(0, 0, 0, 0.6), 0 0 0 0.5px rgba(255, 255, 255, 0.09);
-    --chrome-bg: rgba(21, 25, 28, 0.72);
-  }
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+  --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.35), 0 0 0 0.5px rgba(255, 255, 255, 0.07);
+  --shadow-3: 0 16px 48px rgba(0, 0, 0, 0.6), 0 0 0 0.5px rgba(255, 255, 255, 0.09);
+  --chrome-bg: rgba(21, 25, 28, 0.72);
 }
 
 /* ===========================================================================
@@ -130,6 +135,9 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 html { -webkit-text-size-adjust: 100%; }
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }  /* la flecha hacia la barra inferior (#35) */
+}
 
 body {
   margin: 0;
@@ -222,6 +230,49 @@ h1, h2, h3, p { margin: 0; }
 .chip.danger { color: var(--ink-2); }
 .chip.danger:hover { color: var(--red); }
 .chip.danger:hover { background: var(--red-soft); }
+
+/* Botón de tema (#35): solo icono; se ve el del tema al que se cambia. */
+.chip.icon { display: inline-flex; align-items: center; padding: 6px 8px; }
+.chip.icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6;
+  stroke-linecap: round; stroke-linejoin: round; }
+.chip.icon .i-moon path { fill: currentColor; stroke: none; }
+.chip.icon .i-sun { display: none; }
+:root[data-theme="dark"] .chip.icon .i-sun { display: block; }
+:root[data-theme="dark"] .chip.icon .i-moon { display: none; }
+
+/* Barra inferior: lo que se usa poco (#35). */
+.foot {
+  display: flex;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-4) calc(var(--s-6) + env(safe-area-inset-bottom));
+  border-top: 0.5px solid var(--hairline);
+}
+.foot form { display: contents; }
+
+/* Flecha flotante abajo a la izquierda que lleva a la barra inferior. */
+.to-foot {
+  position: fixed;
+  left: calc(var(--s-4) + env(safe-area-inset-left));
+  bottom: calc(var(--s-4) + env(safe-area-inset-bottom));
+  z-index: 15;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-full);
+  background: var(--chrome-bg);
+  color: var(--accent);
+  box-shadow: var(--shadow-2);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  transition: opacity var(--t-med) var(--ease-soft), transform var(--t-med) var(--ease);
+}
+.to-foot:hover { text-decoration: none; background: var(--surface-hover); }
+.to-foot svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round; }
+.to-foot.hidden { opacity: 0; transform: translateY(8px); pointer-events: none; }
+.tanda .to-foot { display: none; }
 
 .page {
   flex: 1;
@@ -871,9 +922,7 @@ code {
   :root { --measure: 100%; }
   .page { padding: var(--s-5) var(--s-3) var(--s-8); }
   .chrome-in { padding: 0 var(--s-3); gap: var(--s-2); }
-  /* Con cuatro enlaces no cabe todo a 380 px: el código del examen se ve
-     en la portada, y los enlaces pierden algo de relleno. */
-  .chrome-title span { display: none; }
+  /* A 380 px la barra va justa: los enlaces pierden algo de relleno. */
   .chrome-acts { gap: 0; }
   .chip { padding: 6px 7px; }
   .card { padding: var(--s-4); }
