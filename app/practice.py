@@ -1,11 +1,11 @@
 """Vistas de página: inicio, sesión de práctica, historial."""
-from flask import Blueprint, flash, redirect, render_template, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
 
-from app.exams import current_exam
+from app.exams import SESSION_EXAM_KEY, NoExamError, active_exam, current_exam, session_exam
 from app.extensions import db
-from app.models import Domain, Question, StudySession
+from app.models import Domain, Exam, Question, StudySession
 from app.progress import reset_progress
 from app.sampling import domain_readiness
 from app.srs import review_summary
@@ -48,10 +48,66 @@ def home():
         total_questions=total_questions,
         review=review_summary(exam),
         weekdays=WEEKDAYS,
+        exams=Exam.query.filter_by(archived=False).order_by(Exam.code).all(),
+        active=active_exam(),
+        studying_other=session_exam() is not None,
         history=history,
         pass_threshold=exam.pass_threshold_pct,
         recall_first=current_user.recall_first,
     )
+
+
+@bp.app_context_processor
+def inject_chrome_exam():
+    """Código del examen en curso para la barra superior de todas las páginas."""
+    if not current_user.is_authenticated:
+        return {}
+    try:
+        return {"chrome_exam_code": current_exam().code}
+    except NoExamError:
+        return {}
+
+
+def _open_exam(exam_id):
+    exam = db.session.get(Exam, exam_id)
+    if exam is None:
+        abort(404)
+    if exam.archived:
+        flash(f"{exam.code} está archivado. Desarchívalo en «Exámenes» para estudiarlo.")
+        return None
+    return exam
+
+
+@bp.route("/examen/<int:exam_id>/estudiar", methods=["POST"])
+@login_required
+def study_exam(exam_id):
+    """Estudiar otro examen solo en este navegador, sin cambiar el activo."""
+    exam = _open_exam(exam_id)
+    if exam is not None:
+        # Sin flash: la portada ya lo dice con el aviso fijo de «estudiando
+        # de forma puntual» mientras dure.
+        session[SESSION_EXAM_KEY] = exam.id
+    return redirect(url_for("practice.home"))
+
+
+@bp.route("/examen/<int:exam_id>/activar", methods=["POST"])
+@login_required
+def activate_exam(exam_id):
+    """Fijar el examen activo: el que se abre al entrar, en cualquier dispositivo."""
+    exam = _open_exam(exam_id)
+    if exam is not None:
+        current_user.active_exam_id = exam.id
+        db.session.commit()
+        session.pop(SESSION_EXAM_KEY, None)
+        flash(f"{exam.code} es tu examen activo.")
+    return redirect(url_for("practice.home"))
+
+
+@bp.route("/examen/volver-al-activo", methods=["POST"])
+@login_required
+def back_to_active():
+    session.pop(SESSION_EXAM_KEY, None)
+    return redirect(url_for("practice.home"))
 
 
 @bp.route("/preferencias/primero-piensa", methods=["POST"])

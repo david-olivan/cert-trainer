@@ -3,7 +3,7 @@
 {% block content %}
   <div class="head">
     <h1>Exámenes</h1>
-    <p class="sub">El examen en curso es el que estudias en la portada.</p>
+    <p class="sub">El activo es el que se abre al entrar; el que está en curso, el que estudias ahora. Se eligen desde la portada.</p>
   </div>
 
   <div class="list">
@@ -11,7 +11,7 @@
       <a class="row" href="{{ url_for('exams_admin.edit', exam_id=exam.id) }}">
         <span class="badge {{ '' if exam.id == current.id else 'neutral' }}">{{ exam.domains | length }}</span>
         <span class="row-body">
-          <span class="row-title">{{ exam.code }}{% if exam.id == current.id %} · en curso{% endif %}{% if exam.archived %} · archivado{% endif %}</span>
+          <span class="row-title">{{ exam.code }}{% if active and exam.id == active.id %} · activo{% endif %}{% if exam.id == current.id %} · en curso{% endif %}{% if exam.archived %} · archivado{% endif %}</span>
           <span class="row-sub">
             {{ exam.name }} · {{ question_counts.get(exam.id, 0) }} preguntas · {{ session_counts.get(exam.id, 0) }} sesiones
             {%- if exam.exam_date %} · examen el {{ exam.exam_date.strftime("%d/%m/%Y") }}{% endif %}

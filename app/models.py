@@ -21,6 +21,9 @@ class User(UserMixin, db.Model):
     # Modo «primero piensa» (issue #14): enunciado antes que opciones. Vive
     # en el servidor para que valga igual en el móvil y en el portátil.
     recall_first = db.Column(db.Boolean, nullable=False, default=False, server_default=false())
+    # Examen activo (issue #8): el que se abre al entrar. Nulo = el primero
+    # sin archivar. Ver app/exams.py.
+    active_exam_id = db.Column(db.Integer, db.ForeignKey("exams.id", name="fk_users_active_exam"), nullable=True)
 
 
 class Exam(db.Model):
