@@ -11,7 +11,7 @@ from flask_login import login_required
 
 from app.exams import current_exam
 from app.extensions import db
-from app.import_validation import question_to_short_format, validate_import
+from app.import_validation import ImportPayloadError, question_to_short_format, resolve_payload, validate_import
 from app.models import Question
 
 bp = Blueprint("questions_admin", __name__, url_prefix="/preguntas")
@@ -20,8 +20,9 @@ bp = Blueprint("questions_admin", __name__, url_prefix="/preguntas")
 @bp.route("/", methods=["GET"])
 @login_required
 def index():
-    total = Question.query.filter_by(active=True, exam_id=current_exam().id).count()
-    return render_template("import.html", total=total)
+    exam = current_exam()
+    total = Question.query.filter_by(active=True, exam_id=exam.id).count()
+    return render_template("import.html", total=total, exam=exam)
 
 
 @bp.route("/preview", methods=["POST"])
@@ -31,14 +32,16 @@ def preview():
     payload = request.get_json(silent=True) or {}
     raw_text = payload.get("raw", "")
     try:
-        items = json.loads(raw_text)
+        exam, items = resolve_payload(json.loads(raw_text))
     except json.JSONDecodeError as exc:
         return jsonify(error=f"JSON inválido: {exc}"), 400
+    except ImportPayloadError as exc:
+        return jsonify(error=str(exc)), 400
 
-    exam = current_exam()
     result = validate_import(items, exam=exam)
     number_by_domain_id = {d.id: d.number for d in exam.domains}
     return jsonify(
+        exam=exam.code,
         # La vista previa enseña el número de dominio, no su id interno.
         accepted=[{**item, "domain": number_by_domain_id[item["domain_id"]]} for item in result.accepted],
         rejected=[{"identifier": ident, "reason": reason} for ident, reason in result.rejected],
@@ -53,16 +56,19 @@ def confirm():
     payload = request.get_json(silent=True) or {}
     raw_text = payload.get("raw", "")
     try:
-        items = json.loads(raw_text)
+        exam, items = resolve_payload(json.loads(raw_text))
     except json.JSONDecodeError as exc:
         return jsonify(error=f"JSON inválido: {exc}"), 400
+    except ImportPayloadError as exc:
+        return jsonify(error=str(exc)), 400
 
-    result = validate_import(items)
+    result = validate_import(items, exam=exam)
     for item in result.accepted:
         db.session.add(Question(**item))
     db.session.commit()
 
     return jsonify(
+        exam=exam.code,
         inserted=len(result.accepted),
         rejected=[{"identifier": ident, "reason": reason} for ident, reason in result.rejected],
     )

@@ -3,13 +3,15 @@
 {% block content %}
   <div class="head">
     <h1>Preguntas</h1>
-    <p class="sub">{{ total }} preguntas activas en el banco</p>
+    <p class="sub">{{ total }} preguntas activas en {{ exam.code }}</p>
   </div>
 
   <h2 class="section-title">Importar</h2>
   <div class="card">
     <p class="note">
-      Pega el bloque generado por la skill <code>preguntas-aib-c01</code>.
+      Pega el bloque que te haya dado Claude: con la skill <code>preguntas-aib-c01</code> o con el
+      <a href="{{ url_for('exams_admin.generation_kit', exam_id=exam.id) }}">kit de {{ exam.code }}</a>.
+      Si el bloque dice a qué examen va, entra en ese; si es un array suelto, en {{ exam.code }}.
       Primero se muestra una vista previa; nada se inserta sin confirmar.
     </p>
     <textarea id="raw" class="code-input" style="margin-top:var(--s-4)"
@@ -25,11 +27,11 @@
   <h2 class="section-title">Exportar</h2>
   <div class="card">
     <p class="note">
-      Copia de seguridad del banco completo en el formato corto de importación.
+      Copia de seguridad de las preguntas de {{ exam.code }} en el formato corto de importación.
       Versiónala en <code>data/</code>: es el único contenido irreemplazable del proyecto.
     </p>
     <div class="acts">
-      <a class="btn tinted" href="{{ url_for('questions_admin.export') }}">Exportar banco completo</a>
+      <a class="btn tinted" href="{{ url_for('questions_admin.export') }}">Exportar {{ exam.code }}</a>
     </div>
   </div>
 

@@ -51,7 +51,7 @@
   function renderPreview(data) {
     var node = tpl("tpl-preview");
 
-    var summary = data.accepted.length + " preguntas listas para insertar";
+    var summary = data.accepted.length + " preguntas listas para insertar en " + data.exam;
     if (data.rejected.length) summary += ", " + data.rejected.length + " descartadas";
     node.querySelector(".summary").textContent = summary + ".";
 
@@ -73,7 +73,7 @@
         btn.disabled = true;
         post(window.IMPORT_URLS.confirm, { raw: raw.value })
           .then(function (result) {
-            showMessage("Insertadas " + result.inserted + " preguntas. Recargando…", "ok-msg");
+            showMessage("Insertadas " + result.inserted + " preguntas en " + result.exam + ". Recargando…", "ok-msg");
             raw.value = "";
             setTimeout(function () { window.location.reload(); }, 1200);
           })

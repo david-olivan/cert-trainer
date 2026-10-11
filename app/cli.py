@@ -10,7 +10,7 @@ from flask.cli import with_appcontext
 
 from app.exams import current_exam
 from app.extensions import db
-from app.import_validation import question_to_short_format, validate_import
+from app.import_validation import ImportPayloadError, question_to_short_format, resolve_payload, validate_import
 from app.models import Attempt, Domain, Question, ReviewState, StudySession, User, utcnow
 from app.progress import reset_progress
 from app.sampling import weighted_sample
@@ -26,16 +26,24 @@ def questions_cli():
 @click.argument("fichero", type=click.Path(exists=True, dir_okay=False))
 @with_appcontext
 def import_questions(fichero):
-    """Valida e inserta las preguntas de FICHERO (mismo validador que la web)."""
-    with open(fichero, encoding="utf-8") as f:
-        items = json.load(f)
+    """Valida e inserta las preguntas de FICHERO (mismo validador que la web).
 
-    result = validate_import(items)
+    FICHERO puede ser el array de preguntas (van al examen activo) o
+    {"exam": "<código>", "questions": [...]}.
+    """
+    with open(fichero, encoding="utf-8") as f:
+        data = json.load(f)
+    try:
+        exam, items = resolve_payload(data)
+    except ImportPayloadError as exc:
+        raise click.ClickException(str(exc))
+
+    result = validate_import(items, exam=exam)
     for item in result.accepted:
         db.session.add(Question(**item))
     db.session.commit()
 
-    click.echo(f"Insertadas {len(result.accepted)} preguntas.")
+    click.echo(f"Insertadas {len(result.accepted)} preguntas en {exam.code}.")
     if result.rejected:
         click.echo(f"Descartadas {len(result.rejected)}:")
         for identifier, reason in result.rejected:

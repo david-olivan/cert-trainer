@@ -2,11 +2,11 @@
 
 La lógica del formulario está en app/exam_form.py; aquí solo las rutas.
 """
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, flash, redirect, render_template, request, url_for
 from flask_login import login_required
 from sqlalchemy import func
 
-from app import exam_form
+from app import exam_form, kit
 from app.exams import active_exam, current_exam
 from app.extensions import db
 from app.models import Exam, Question, StudySession, User
@@ -105,3 +105,31 @@ def delete(exam_id):
     exam_form.delete(exam)
     flash(f"Examen {code} borrado.")
     return redirect(url_for("exams_admin.index"))
+
+
+def _kit_count():
+    """Cuántas preguntas pedir: ?n= de la URL, acotado a algo razonable."""
+    try:
+        count = int(request.args.get("n", kit.DEFAULT_COUNT))
+    except ValueError:
+        count = kit.DEFAULT_COUNT
+    return max(1, min(kit.MAX_COUNT, count))
+
+
+@bp.route("/<int:exam_id>/kit")
+@login_required
+def generation_kit(exam_id):
+    """Kit para generar preguntas con Claude (#20): se copia o se descarga."""
+    exam = _get_exam(exam_id)
+    count = _kit_count()
+    return render_template("kit.html", exam=exam, count=count, max_count=kit.MAX_COUNT,
+                           markdown=kit.build_kit(exam, count))
+
+
+@bp.route("/<int:exam_id>/kit.md")
+@login_required
+def generation_kit_download(exam_id):
+    exam = _get_exam(exam_id)
+    response = Response(kit.build_kit(exam, _kit_count()), mimetype="text/markdown; charset=utf-8")
+    response.headers["Content-Disposition"] = f"attachment; filename=kit-{exam.code.lower()}.md"
+    return response

@@ -842,6 +842,13 @@ a.row:hover { background: var(--surface-hover); text-decoration: none; }
 .exam-row .fields { margin-bottom: var(--s-3); }
 .exam-row > label.note { display: block; margin-bottom: var(--s-2); }
 .code-input.short { min-height: 84px; }
+.code-input.tall { min-height: 360px; margin-top: var(--s-4); }
+.kit-count { display: flex; align-items: center; gap: var(--s-3); margin-top: var(--s-4); flex-wrap: wrap; }
+.kit-count label { font-size: var(--fs-callout); color: var(--ink-2); }
+.kit-count input {
+  width: 80px; padding: var(--s-2) var(--s-3); border: none; border-radius: var(--r-sm);
+  background: var(--surface-2); color: var(--ink); font: inherit;
+}
 .check {
   display: flex;
   align-items: center;

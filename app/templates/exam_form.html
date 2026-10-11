@@ -118,6 +118,12 @@
   </form>
 
   {% if exam %}
+    <h2 class="section-title">Preguntas nuevas</h2>
+    <div class="card">
+      <p class="note">El kit lleva la ficha de {{ exam.code }}, dónde faltan preguntas y el formato exacto para importar lo que genere Claude.</p>
+      <div class="acts"><a class="btn tinted" href="{{ url_for('exams_admin.generation_kit', exam_id=exam.id) }}">Kit para generar preguntas</a></div>
+    </div>
+
     <h2 class="section-title">Archivar o borrar</h2>
     <div class="card">
       <p class="note">

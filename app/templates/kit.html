@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Kit {{ exam.code }} — Entrenador{% endblock %}
+{% block content %}
+  <div class="head">
+    <h1>Kit para generar preguntas</h1>
+    <p class="sub">{{ exam.code }} · {{ exam.name }}</p>
+  </div>
+
+  <div class="card">
+    <p class="note">
+      Copia el kit y pégalo en una conversación con Claude. Devolverá un bloque JSON que se pega en
+      «Preguntas»: lleva el código del examen, así que entra en {{ exam.code }} aunque estés estudiando otro.
+    </p>
+    <form method="get" class="kit-count">
+      <label for="n">Preguntas que pedir</label>
+      <input id="n" name="n" type="number" min="1" max="{{ max_count }}" value="{{ count }}" inputmode="numeric">
+      <button type="submit" class="btn tinted">Actualizar</button>
+    </form>
+    <textarea id="kit" class="code-input tall" readonly spellcheck="false">{{ markdown }}</textarea>
+    <div class="acts">
+      <button type="button" class="btn" id="copy-kit">Copiar</button>
+      <a class="btn tinted" href="{{ url_for('exams_admin.generation_kit_download', exam_id=exam.id, n=count) }}">Descargar .md</a>
+      <a class="btn plain" href="{{ url_for('questions_admin.index') }}">Ir a «Preguntas»</a>
+    </div>
+    <p class="note" id="copy-msg" role="status" style="margin-top:var(--s-3)"></p>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  var area = document.getElementById("kit");
+  var msg = document.getElementById("copy-msg");
+  document.getElementById("copy-kit").addEventListener("click", function () {
+    function done() { msg.textContent = "Copiado. Pégalo en el chat con Claude."; }
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(area.value).then(done, function () {
+        area.select(); msg.textContent = "No se ha podido copiar solo: está seleccionado, copia con Ctrl+C.";
+      });
+    } else {
+      area.select();
+      document.execCommand("copy") ? done() : (msg.textContent = "Está seleccionado: copia con Ctrl+C.");
+    }
+  });
+})();
+</script>
+{% endblock %}

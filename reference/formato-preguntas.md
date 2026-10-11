@@ -30,7 +30,31 @@ Es el formato que produce la skill `preguntas-aib-c01` y el que usa `data/questi
 
 ## Examen al que va cada pregunta
 
-El formato todavía no dice a qué examen pertenece la pregunta: el bloque entero entra en el examen en curso, que hoy es AIB-C01, y la exportación saca solo ese examen. El kit de generación (#20) añadirá el examen al formato.
+La importación admite dos formas:
+
+- **El array de preguntas tal cual**, como en `data/questions.seed.json`. Entra en el examen en curso.
+- **Un objeto con el código del examen**, que es lo que pide el kit de generación (#20):
+
+```json
+{
+  "exam": "AIB-C01",
+  "questions": [ { "id": "d2-13", "dom": 2, "...": "..." } ]
+}
+```
+
+  Entra en ese examen aunque se esté estudiando otro. Si el código no existe, la importación lo rechaza entera y dice cómo arreglarlo.
+
+En los dos casos se valida contra los dominios y los formatos de pregunta de ese examen. La exportación sigue sacando un array con las preguntas del examen en curso, que es lo que versiona la copia semanal del banco.
+
+## Kit de generación
+
+Desde «Exámenes» → un examen → «Kit para generar preguntas» se copia o se descarga un Markdown para pegar en el chat con Claude. Lleva:
+
+- el encargo y las reglas de redacción;
+- los dominios con sus pesos, las habilidades y los formatos admitidos;
+- dónde faltan preguntas: habilidades sin cubrir, las más falladas y el déficit de cada formato;
+- un reparto sugerido;
+- este formato con un ejemplo, los siguientes `id` libres y los ya usados.
 
 ## Estado del banco sembrado
 
