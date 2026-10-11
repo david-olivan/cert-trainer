@@ -1,13 +1,18 @@
 """Vistas de página: inicio, sesión de práctica, historial."""
 from flask import Blueprint, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import distinct, func
+from sqlalchemy import func
 
 from app.exams import current_exam
 from app.extensions import db
-from app.models import Attempt, Domain, Question, StudySession
+from app.models import Domain, Question, StudySession
 from app.progress import reset_progress
-from app.sampling import FALLOS_MAX, domain_readiness
+from app.sampling import domain_readiness
+from app.srs import review_summary
+
+# Abreviaturas de los días para la previsión de la portada. strftime
+# depende del locale del servidor, que en Render es inglés.
+WEEKDAYS = ("lun", "mar", "mié", "jue", "vie", "sáb", "dom")
 
 bp = Blueprint("practice", __name__)
 
@@ -27,20 +32,6 @@ def home():
     )
     question_counts = {d.number: counts_by_number.get(d.number, 0) for d in domains}
     total_questions = sum(question_counts.values())
-    # Cuenta preguntas distintas falladas contando identificadores, no filas
-    # enteras. Un SELECT DISTINCT sobre la entidad Question arrastra las
-    # columnas `options` y `correct`, que son json, y Postgres no sabe
-    # comparar ese tipo por igualdad: la portada devolvía 500 en
-    # producción mientras en sqlite pasaba sin queja.
-    # Se filtra por active, como hace build_queue("fallos"), para que el
-    # número de la portada sea el de las preguntas que el modo va a servir.
-    failed_count = (
-        db.session.query(func.count(distinct(Attempt.question_id)))
-        .select_from(Attempt)
-        .join(Question, Attempt.question_id == Question.id)
-        .filter(Attempt.is_correct.is_(False), Question.active.is_(True), Question.exam_id == exam.id)
-        .scalar()
-    )
     history = (
         StudySession.query.filter(StudySession.exam_id == exam.id, StudySession.finished_at.isnot(None))
         .order_by(StudySession.finished_at.desc())
@@ -55,8 +46,8 @@ def home():
         readiness=readiness,
         question_counts=question_counts,
         total_questions=total_questions,
-        failed_count=failed_count,
-        fallos_max=FALLOS_MAX,
+        review=review_summary(exam),
+        weekdays=WEEKDAYS,
         history=history,
         pass_threshold=exam.pass_threshold_pct,
         recall_first=current_user.recall_first,

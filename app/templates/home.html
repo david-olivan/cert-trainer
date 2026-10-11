@@ -34,6 +34,21 @@
 
   <h2 class="section-title">Entrenar</h2>
   <div class="list">
+    {# Con nada pendiente, la fila no abre una tanda vacía: ofrece la rápida. #}
+    <button class="row" data-mode="{{ 'repaso' if review.total else 'rapida' }}">
+      <span class="badge {{ '' if review.total else 'neutral' }} tabular">{{ review.total if review.total else "✓" }}</span>
+      <span class="row-body">
+        <span class="row-title">Repaso de hoy</span>
+        <span class="row-sub">
+          {%- if review.total -%}
+            {{ review.due }} {{ "pendiente" if review.due == 1 else "pendientes" }} · {{ review.new }} {{ "nueva" if review.new == 1 else "nuevas" }}
+          {%- else -%}
+            Nada pendiente hoy. Pulsa para una tanda rápida de 10.
+          {%- endif -%}
+        </span>
+      </span>
+      <span class="chev"></span>
+    </button>
     <button class="row" data-mode="simulacro">
       <span class="badge neutral tabular">{{ total_questions }}</span>
       <span class="row-body">
@@ -50,15 +65,13 @@
       </span>
       <span class="chev"></span>
     </button>
-    <button class="row" data-mode="fallos" {{ "disabled" if failed_count == 0 else "" }}>
-      <span class="badge neutral">↺</span>
-      <span class="row-body">
-        <span class="row-title">Repaso de fallos</span>
-        <span class="row-sub">{{ "Las " ~ ([failed_count, fallos_max] | min) ~ " preguntas que más veces has fallado" if failed_count else "Todavía no has fallado ninguna pregunta" }}</span>
-      </span>
-      <span class="chev"></span>
-    </button>
   </div>
+  <p class="note inset forecast">
+    Próximos días:
+    {% for day, count in review.forecast[1:] -%}
+      <span>{{ "mañana" if loop.first else weekdays[day.weekday()] }} <b class="tabular">{{ count }}</b></span>{{ " · " if not loop.last }}
+    {%- endfor %}
+  </p>
 
   <form class="list" style="margin-top:var(--s-3)" method="post"
         action="{{ url_for('practice.toggle_recall_first') }}">
@@ -90,7 +103,7 @@
   {% if history %}
     <h2 class="section-title">Últimas sesiones</h2>
     <div class="list">
-      {% set labels = {"dominio": "Dominio", "simulacro": "Simulacro", "fallos": "Repaso de fallos", "rapida": "Tanda rápida"} %}
+      {% set labels = {"dominio": "Dominio", "simulacro": "Simulacro", "repaso": "Repaso de hoy", "fallos": "Repaso de fallos", "rapida": "Tanda rápida"} %}
       {% for s in history %}
         <div class="row">
           <span class="row-body">

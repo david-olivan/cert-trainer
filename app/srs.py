@@ -14,9 +14,13 @@ Attempt es el registro de revisiones y ReviewState es derivable de él:
 """
 from datetime import datetime, time, timedelta, timezone
 from statistics import median
+from zoneinfo import ZoneInfo
 
 from fsrs import Card, Rating, Scheduler, State
 from fsrs.scheduler import DEFAULT_PARAMETERS
+
+from flask import current_app
+from sqlalchemy import func
 
 from app.extensions import db
 from app.models import Attempt, Exam, FsrsParameters, Question, ReviewState
@@ -271,3 +275,104 @@ def rebuild(exams=None, now=None):
 
     db.session.commit()
     return touched
+
+
+# ---------------------------------------------------------------------------
+# «Repaso de hoy» (issue #17)
+# ---------------------------------------------------------------------------
+
+FORECAST_DAYS = 7
+
+
+def local_tz():
+    return ZoneInfo(current_app.config["TIMEZONE"])
+
+
+def day_end(now, tz, days_ahead=0):
+    """Instante UTC en que acaba el día local de `now` (más `days_ahead` días).
+
+    «Hoy» es el día local, no las próximas 24 horas: una pregunta que vence
+    esta tarde ya está pendiente por la mañana, como en Anki.
+    """
+    local_date = utc(now).astimezone(tz).date() + timedelta(days=days_ahead + 1)
+    return datetime.combine(local_date, time.min, tzinfo=tz).astimezone(timezone.utc)
+
+
+def _states_of_active_questions(exam):
+    return (
+        ReviewState.query.join(Question, ReviewState.question_id == Question.id)
+        .filter(Question.exam_id == exam.id, Question.active.is_(True))
+        .all()
+    )
+
+
+def _new_seen_today(exam, now, tz):
+    """Cuántas preguntas se vieron hoy por primera vez: gastan cupo de nuevas."""
+    today_starts = day_end(now, tz, days_ahead=-1)
+    first_seen = (
+        db.session.query(func.min(Attempt.answered_at))
+        .join(Question, Attempt.question_id == Question.id)
+        .filter(Question.exam_id == exam.id)
+        .group_by(Attempt.question_id)
+        .all()
+    )
+    return sum(1 for (first,) in first_seen if utc(first) >= today_starts)
+
+
+def daily_review(exam, now=None):
+    """Lo que toca hoy: (pendientes, nuevas).
+
+    Pendientes: las preguntas que vencen antes de que acabe el día local,
+    de la que menos probabilidad tiene de acertarse a la que más. Nuevas:
+    hasta `exam.new_per_day` nunca vistas, descontadas las que ya se
+    estrenaron hoy, muestreadas con el peso de cada dominio.
+    """
+    from app.sampling import weighted_sample
+
+    now = utc(now or datetime.now(timezone.utc))
+    tz = local_tz()
+    until = day_end(now, tz)
+    scheduler = scheduler_for(exam, active_parameters(exam))
+
+    due_states = [s for s in _states_of_active_questions(exam) if utc(s.due) < until]
+    due_states.sort(key=lambda s: (scheduler.get_card_retrievability(_card_from(s, s.question_id), now), s.question_id))
+    due = [s.question for s in due_states]
+
+    remaining_new = max(0, exam.new_per_day - _new_seen_today(exam, now, tz))
+    new = []
+    if remaining_new:
+        seen_ids = {s.question_id for s in ReviewState.query.join(Question).filter(Question.exam_id == exam.id)}
+        unseen_by_domain = {d.number: [] for d in exam.domains}
+        number_by_domain_id = {d.id: d.number for d in exam.domains}
+        for q in Question.query.filter_by(exam_id=exam.id, active=True):
+            if q.id not in seen_ids:
+                unseen_by_domain[number_by_domain_id[q.domain_id]].append(q)
+        available = sum(len(pool) for pool in unseen_by_domain.values())
+        new = weighted_sample(exam, min(remaining_new, available), pool_by_domain=unseen_by_domain)
+    return due, new
+
+
+def review_summary(exam, now=None):
+    """Cifras de la portada: pendientes y nuevas de hoy y previsión de los próximos días.
+
+    `forecast` tiene FORECAST_DAYS entradas (fecha local, cuántas vencen ese
+    día); la de hoy incluye las atrasadas.
+    """
+    now = utc(now or datetime.now(timezone.utc))
+    tz = local_tz()
+    due, new = daily_review(exam, now)
+    ends = [day_end(now, tz, i) for i in range(FORECAST_DAYS)]
+    counts = [0] * FORECAST_DAYS
+    for state in _states_of_active_questions(exam):
+        state_due = utc(state.due)
+        for i, end in enumerate(ends):
+            if state_due < end:
+                counts[i] += 1
+                break
+    today = utc(now).astimezone(tz).date()
+    return {
+        "due": len(due),
+        "new": len(new),
+        "total": len(due) + len(new),
+        "forecast": [(today + timedelta(days=i), counts[i]) for i in range(FORECAST_DAYS)],
+    }

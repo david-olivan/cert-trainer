@@ -5,12 +5,8 @@ Los dominios y sus pesos viven en la base de datos (tablas `exams` y
 """
 import random
 
-from sqlalchemy import func
-
 from app.extensions import db
 from app.models import Attempt, Domain, Question
-
-FALLOS_MAX = 20
 
 
 def _active_questions_by_domain(exam):
@@ -23,7 +19,9 @@ def _active_questions_by_domain(exam):
 
 def weighted_sample(exam, n, pool_by_domain=None):
     """Muestrea `n` preguntas respetando el peso oficial de cada dominio del examen."""
-    by_domain = pool_by_domain or _active_questions_by_domain(exam)
+    # «is None» y no «or»: un reparto vacío (no quedan preguntas nuevas) es
+    # una respuesta válida, no una señal para muestrear el banco entero.
+    by_domain = _active_questions_by_domain(exam) if pool_by_domain is None else pool_by_domain
     out = []
     for domain, weight in ((d.number, d.weight) for d in exam.domains):
         pool = by_domain.get(domain, [])[:]
@@ -62,19 +60,12 @@ def build_queue(exam, mode, domain=None):
         random.shuffle(pool)
         return pool
 
-    if mode == "fallos":
-        counts = (
-            Attempt.query.join(Question)
-            .filter(Attempt.is_correct.is_(False), Question.active.is_(True), Question.exam_id == exam.id)
-            .with_entities(Attempt.question_id, func.count(Attempt.id).label("fails"))
-            .group_by(Attempt.question_id)
-            .order_by(func.count(Attempt.id).desc())
-            .limit(FALLOS_MAX)
-            .all()
-        )
-        ids_in_order = [qid for qid, _fails in counts]
-        questions_by_id = {q.id: q for q in Question.query.filter(Question.id.in_(ids_in_order)).all()}
-        return [questions_by_id[qid] for qid in ids_in_order if qid in questions_by_id]
+    if mode == "repaso":
+        # Import local: app.srs importa este módulo para muestrear las nuevas.
+        from app.srs import daily_review
+
+        due, new = daily_review(exam)
+        return due + new
 
     if mode == "rapida":
         return weighted_sample(exam, 10)

@@ -267,6 +267,10 @@ h1, h2, h3, p { margin: 0; }
   line-height: 1.45;
 }
 .note.inset { padding: 0 var(--s-4); }
+/* Previsión de repasos bajo la lista de modos (#17). */
+.note.forecast { margin-top: var(--s-2); }
+.note.forecast b { font-weight: 600; color: var(--ink); }
+.note.forecast span { white-space: nowrap; }  /* el día y su cifra no se separan */
 
 /* ===========================================================================
    Superficies: tarjeta y lista agrupada
