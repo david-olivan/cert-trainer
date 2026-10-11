@@ -9,7 +9,7 @@ Fase 1 completa: acceso, banco de preguntas, los cuatro modos de práctica, impo
 ## Estructura
 
 ```
-CLAUDE.md                          contexto permanente y decisiones tomadas
+CLAUDE.md                          contexto, decisiones tomadas y normas de trabajo (ramas, commits, issues)
 SPEC.md                            qué construir, por fases
 render.yaml                        el servicio de Render (la base va aparte, en Neon)
 docker-start.sh                    arranque en producción: migra, siembra y cede a gunicorn
@@ -79,6 +79,7 @@ El servicio se duerme a los 15 minutos sin tráfico y tarda alrededor de un minu
 4. **GitHub**: en `Settings > Secrets and variables > Actions`, añade:
    - `RENDER_DEPLOY_HOOK_URL` — el hook de despliegue, en Render bajo `Settings > Deploy Hook`.
    - `DATABASE_URL` — la misma cadena de Neon, para la copia semanal del banco.
+5. **GitHub**: en `Settings > General > Pull Requests`, activa «Automatically delete head branches» para que las ramas se borren solas al mergear.
 
 No hay paso de migración manual: `docker-start.sh` ejecuta `flask db upgrade` y `flask db-seed` antes de ceder el proceso a gunicorn. El plan gratuito no tiene comando de pre-despliegue, así que va ahí. Ambos son idempotentes; reiniciar no duplica nada ni pisa las preguntas importadas.
 
@@ -86,11 +87,29 @@ No hay paso de migración manual: `docker-start.sh` ejecuta `flask db upgrade` y
 
 `render.yaml` lleva `autoDeployTrigger: "off"` a propósito: empujar a `main` no despliega nada por sí solo. El workflow `.github/workflows/ci.yml` construye la imagen, la arranca contra un Postgres real, comprueba que migra, siembra, deja entrar y protege las rutas, y solo entonces llama al hook de despliegue. Si la batería falla, a producción no llega nada.
 
+Nunca se trabaja sobre `main`: cada cambio va en su rama y entra por pull request. El recorrido completo:
+
+1. **Rama nueva** desde `main` actualizada: `git switch -c feat/7-modelo-certificaciones`.
+2. **Push de la rama.** CI corre las pruebas y la imagen, pero no despliega.
+3. **Pull request a `main`** con `Closes #N` en la descripción. CI vuelve a correr; no se mergea en rojo.
+4. **Merge.** El push a `main` relanza CI y, si sale verde, llama al hook de Render. El issue se cierra solo.
+5. **Render** construye la imagen; al arrancar, `docker-start.sh` migra y siembra. Comprueba `/healthz` y entra.
+
+Si el PR trae una migración que transforma datos, lanza antes a mano el workflow «Copia del banco» desde la pestaña Actions.
+
 Para redesplegar sin cambiar nada del código —por ejemplo tras actualizar el secreto del hook, o para reintentar un despliegue que se quedó a medias en Render— está el botón **Run workflow** del workflow CI en la pestaña Actions, eligiendo `main`. Vuelve a correr la batería entera antes de llamar al hook, así que la garantía de arriba se mantiene. No hace falta ningún commit vacío.
 
 ### Copia de seguridad del banco
 
 `.github/workflows/copia-del-banco.yml` exporta el banco desde producción cada lunes y lo versiona en `data/questions.backup.json`. Una vez desplegado, las preguntas viven solo en una base de Neon del plan gratuito, que no tiene recuperación a un punto en el tiempo: esta copia es la red. Se puede lanzar a mano desde la pestaña Actions. Si la exportación viene vacía, el workflow falla en vez de sobrescribir la copia buena.
+
+## Flujo de trabajo
+
+Las normas completas están en `CLAUDE.md`. En corto:
+
+- **Ramas**: nunca sobre `main`. Una rama por issue, `<tipo>/<issue>-<descripcion>`, que se borra al mergear.
+- **Commits**: [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/) en español (`feat: resolver la tanda con el teclado`), con el porqué en el cuerpo y sin líneas de atribución como `Co-Authored-By`.
+- **Issues**: se vinculan con `Closes #N` / `Fixes #N` / `Refs #N`. Las palabras clave tienen que ir en inglés: GitHub no reconoce «Cierra #N» y el issue se queda abierto.
 
 ## Preguntas nuevas
 
