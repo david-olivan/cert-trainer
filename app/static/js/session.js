@@ -30,6 +30,8 @@
     sel: [],
     shown: false,
     verdict: null,
+    // Si se pidió la pista de la pregunta en curso antes de responder.
+    hintUsed: false,
     timed: mode === "simulacro",
     secondsLeft: 0,
     questionStartedAt: null,
@@ -105,6 +107,7 @@
     state.sel = [];
     state.shown = false;
     state.verdict = null;
+    state.hintUsed = false;
     state.questionStartedAt = Date.now();
     mountQuestion();
   }
@@ -149,6 +152,7 @@
       hintbtn: node.querySelector(".hintbtn"),
       verdictSlot: node.querySelector(".verdict-slot"),
       check: node.querySelector('[data-act="check"]'),
+      checkUnsure: node.querySelector('[data-act="check-unsure"]'),
       quit: node.querySelector('[data-act="quit"]'),
       keyhint: node.querySelector(".keyhint"),
     };
@@ -161,10 +165,15 @@
     }
     view.stem.textContent = q.stem;
     view.instr.hidden = q.type !== "m";
-    view.check.textContent = state.timed ? "Siguiente" : "Comprobar";
+    // Responder pide a la vez la confianza: «seguro» es el camino por
+    // defecto (clic principal y espacio) y «dudo» el alternativo (tecla D).
+    // No añade ningún paso, solo elige cuál de los dos botones.
+    var verb = state.timed ? "Siguiente" : "Comprobar";
+    view.check.textContent = verb + " · seguro";
+    view.checkUnsure.textContent = verb + " · dudo";
 
     view.keyhint.textContent =
-      "Teclas 1–" + q.options.length + " para elegir · espacio para continuar";
+      "Teclas 1–" + q.options.length + " para elegir · espacio si estás seguro · D si dudas";
 
     q.options.forEach(function (text, i) {
       var opt = tpl("tpl-option");
@@ -177,12 +186,14 @@
     if (q.hint) {
       view.hintline.hidden = false;
       view.hintbtn.addEventListener("click", function () {
+        state.hintUsed = true;
         view.hintline.textContent = q.hint;
         view.hintline.classList.add("revealed");
       });
     }
 
-    view.check.addEventListener("click", check);
+    view.check.addEventListener("click", function () { check("sure"); });
+    view.checkUnsure.addEventListener("click", function () { check("unsure"); });
     view.quit.addEventListener("click", quit);
 
     show(node);
@@ -221,6 +232,7 @@
       }
     }
     view.check.disabled = !state.shown && state.sel.length === 0;
+    view.checkUnsure.disabled = state.shown || state.sel.length === 0;
   }
 
   function toggle(i) {
@@ -235,10 +247,16 @@
     paintOptions();
   }
 
-  function check() {
+  function check(confidence) {
     view.check.disabled = true;
+    view.checkUnsure.disabled = true;
     var seconds = Math.round((Date.now() - state.questionStartedAt) / 1000);
-    post(window.APP_URLS.answer, { selected: state.sel, seconds_spent: seconds })
+    post(window.APP_URLS.answer, {
+      selected: state.sel,
+      seconds_spent: seconds,
+      confidence: confidence,
+      hint_used: state.hintUsed,
+    })
       .then(function (data) {
         state.verdict = data;
         // En simulacro tampoco se ve la explicación, pero el servidor sí
@@ -264,6 +282,7 @@
     node.querySelector(".ref").textContent = "Habilidad " + state.verdict.skill + " de la guía oficial";
     view.verdictSlot.replaceChildren(node);
 
+    view.checkUnsure.hidden = true;
     view.check.textContent = state.index + 1 >= state.total ? "Ver resultado" : "Siguiente";
     view.check.disabled = false;
     view.check.replaceWith(view.check.cloneNode(true));
@@ -380,11 +399,14 @@
     if (typingInField(e.target)) return;
 
     if (e.key === " " || e.key === "Spacebar") {
-      // Con el foco en «Salir y guardar» o «Ver pista», el espacio activa
-      // ese botón de forma nativa y es justo lo que se espera: ahí no se
-      // toca nada.
+      // Con el foco en «Salir y guardar», «Ver pista» o «Comprobar · dudo»,
+      // el espacio activa ese botón de forma nativa y es justo lo que se
+      // espera: ahí no se toca nada. «Dudo» se oculta tras el veredicto y
+      // puede conservar el foco si se pulsó con el ratón; oculto, ya no
+      // cuenta, para que el espacio siga llevando a la siguiente.
       var focused = document.activeElement;
-      if (focused === view.quit || focused === view.hintbtn) return;
+      if (focused === view.quit || focused === view.hintbtn ||
+          (focused === view.checkUnsure && !view.checkUnsure.hidden)) return;
       e.preventDefault();
       // El botón visible ya sabe qué toca (comprobar, siguiente o ver
       // resultado) y un botón deshabilitado ignora el click, así que no
@@ -394,6 +416,15 @@
     }
 
     if (state.shown || !state.question) return;
+
+    if (e.key === "d" || e.key === "D") {
+      e.preventDefault();
+      // Igual que el espacio: el botón deshabilitado (sin opción elegida)
+      // ignora el click.
+      view.checkUnsure.click();
+      return;
+    }
+
     var n = parseInt(e.key, 10);
     if (n >= 1 && n <= state.question.options.length) {
       e.preventDefault();

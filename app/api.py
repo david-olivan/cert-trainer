@@ -19,6 +19,8 @@ bp = Blueprint("api", __name__, url_prefix="/api/session")
 
 SESSION_KEY = "practice_queue"
 
+CONFIDENCE_VALUES = ("sure", "unsure")
+
 
 def _public_question(question, option_order):
     """Pregunta sin el campo `correct`, con las opciones en el orden barajado."""
@@ -108,6 +110,16 @@ def answer():
     if not isinstance(selected, list):
         return jsonify(error="Falta 'selected' (lista de índices elegidos)."), 400
 
+    # Las señales son opcionales para no romper una pestaña abierta con el
+    # JavaScript anterior: si no llegan se guardan como desconocidas (nulo),
+    # nunca con un valor supuesto. Si llegan mal, sí es un error.
+    confidence = payload.get("confidence")
+    if confidence is not None and confidence not in CONFIDENCE_VALUES:
+        return jsonify(error="'confidence' debe ser \"sure\" o \"unsure\"."), 400
+    hint_used = payload.get("hint_used")
+    if hint_used is not None and not isinstance(hint_used, bool):
+        return jsonify(error="'hint_used' debe ser true o false."), 400
+
     ext_id = state["queue"][state["index"]]
     question = Question.query.filter_by(ext_id=ext_id).first()
     if question is None:
@@ -126,6 +138,9 @@ def answer():
         selected=selected_original,
         is_correct=is_correct,
         seconds_spent=seconds_spent if isinstance(seconds_spent, int) else None,
+        confidence=confidence,
+        hint_used=hint_used,
+        option_order=list(order),
     )
     db.session.add(attempt)
     db.session.commit()

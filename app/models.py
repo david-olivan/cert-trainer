@@ -65,6 +65,14 @@ class Attempt(db.Model):
     is_correct = db.Column(db.Boolean, nullable=False)
     seconds_spent = db.Column(db.Integer, nullable=True)
     answered_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+    # Señales para la repetición espaciada (issue #13). Nulas en los
+    # intentos anteriores a que existieran: no se inventan.
+    confidence = db.Column(db.String(10), nullable=True)  # "sure" | "unsure"
+    hint_used = db.Column(db.Boolean, nullable=True)  # se pidió la pista antes de responder
+    # Permutación mostrada: option_order[i] es el índice original de la
+    # opción que apareció en la posición i. Permite medir el sesgo de
+    # posición; `selected` sigue guardándose en índices originales.
+    option_order = db.Column(db.JSON, nullable=True)
 
     question = db.relationship("Question", back_populates="attempts")
     session = db.relationship("StudySession", back_populates="attempts")

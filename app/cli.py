@@ -141,6 +141,28 @@ def _demo_seconds(is_correct, rng):
     return rng.randint(20, 70)
 
 
+def _demo_signals(question, is_correct, seconds, rng):
+    """Confianza, pista y orden de opciones plausibles para un intento.
+
+    Los aciertos lentos y los fallos se marcan más a menudo como «dudo»,
+    pero no siempre: los fallos con «seguro» (errores de concepto) son lo
+    que más interesa ver en las métricas, así que tienen que aparecer.
+    """
+    if not is_correct:
+        unsure_rate = 0.6
+    elif seconds >= 95:
+        unsure_rate = 0.55
+    else:
+        unsure_rate = 0.15
+    order = list(range(len(question.options)))
+    rng.shuffle(order)
+    return {
+        "confidence": "unsure" if rng.random() < unsure_rate else "sure",
+        "hint_used": bool(question.hint) and rng.random() < 0.15,
+        "option_order": order,
+    }
+
+
 @click.command("db-seed-demo")
 @click.option("--reset", is_flag=True, help="Borra el progreso existente antes de generar la demostración.")
 @with_appcontext
@@ -173,6 +195,10 @@ def db_seed_demo(reset):
     # app.sampling.weighted_sample para elegir las preguntas de cada tanda.
     rng = random.Random(20260915)
     random.seed(20260915)
+    # Generador aparte para las señales de #13: si tirasen del mismo `rng`,
+    # desplazarían todas las tiradas siguientes y cambiaría el perfil de
+    # aciertos por dominio que la demostración fija a propósito.
+    signals_rng = random.Random(20261011)
     now = utcnow()
     total_attempts = 0
 
@@ -211,6 +237,7 @@ def db_seed_demo(reset):
                     is_correct=is_correct,
                     seconds_spent=seconds,
                     answered_at=answered_at,
+                    **_demo_signals(question, is_correct, seconds, signals_rng),
                 )
             )
             correct_count += 1 if is_correct else 0
