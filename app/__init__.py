@@ -33,12 +33,14 @@ def create_app():
     from app.api import bp as api_bp
     from app.auth import bp as auth_bp
     from app.practice import bp as practice_bp
+    from app.exams_admin import bp as exams_admin_bp
     from app.questions_admin import bp as questions_admin_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(practice_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(questions_admin_bp)
+    app.register_blueprint(exams_admin_bp)
 
     from app.cli import register_cli
 

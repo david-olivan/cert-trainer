@@ -779,6 +779,34 @@ button.row:hover .chev { transform: rotate(-45deg) translate(2px, 2px); }
 .loading { color: var(--ink-3); font-size: var(--fs-callout); padding: var(--s-10) 0; text-align: center; }
 
 /* ===========================================================================
+   Gestión de exámenes (#19)
+   =========================================================================== */
+
+a.row { color: var(--ink); }
+a.row:hover { background: var(--surface-hover); text-decoration: none; }
+
+/* Etiquetas más anchas que en el acceso: «Min. por pregunta» no cabe en 92 px. */
+.fields.wide .field label { width: 132px; }
+.exam-row { margin-bottom: var(--s-3); }
+.exam-row .fields { margin-bottom: var(--s-3); }
+.exam-row > label.note { display: block; margin-bottom: var(--s-2); }
+.code-input.short { min-height: 84px; }
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  font-size: var(--fs-foot);
+  color: var(--ink-2);
+}
+.weight-sum { text-transform: none; letter-spacing: 0; color: var(--green); }
+.weight-sum.bad { color: var(--red); }
+.acts.tight { margin-top: 0; margin-bottom: var(--s-2); }
+.btn.plain.danger { color: var(--red); }
+.btn.plain.danger:hover { background: var(--red-soft); }
+.error ul { margin: var(--s-2) 0 0; padding-left: var(--s-5); }
+
+/* ===========================================================================
    Importación de preguntas
    =========================================================================== */
 
@@ -830,13 +858,19 @@ code {
 @media (max-width: 420px) {
   :root { --measure: 100%; }
   .page { padding: var(--s-5) var(--s-3) var(--s-8); }
-  .chrome-in { padding: 0 var(--s-3); }
+  .chrome-in { padding: 0 var(--s-3); gap: var(--s-2); }
+  /* Con cuatro enlaces no cabe todo a 380 px: el código del examen se ve
+     en la portada, y los enlaces pierden algo de relleno. */
+  .chrome-title span { display: none; }
+  .chrome-acts { gap: 0; }
+  .chip { padding: 6px 7px; }
   .card { padding: var(--s-4); }
   .meter { height: 148px; gap: var(--s-2); }
   /* Sin salto de línea: «Comprobar · seguro» y «Comprobar · dudo» van
      lado a lado y, partidos en dos líneas, quedaban descompensados. */
   .acts .btn { flex: 1; padding: 0 var(--s-3); white-space: nowrap; }
   .field label { width: 78px; font-size: var(--fs-foot); }
+  .fields.wide .field label { width: 112px; }
   .drow { grid-template-columns: 1fr 64px 40px; }
 }
 
