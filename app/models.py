@@ -23,12 +23,94 @@ class User(UserMixin, db.Model):
     recall_first = db.Column(db.Boolean, nullable=False, default=False, server_default=false())
 
 
-class Question(db.Model):
-    __tablename__ = "questions"
+class Exam(db.Model):
+    """Un examen que se prepara: AIB-C01 es el primero (issue #7).
+
+    Hasta que exista el examen activo (#8), la aplicación trabaja sobre el
+    primero sin archivar: ver app/exams.py.
+    """
+
+    __tablename__ = "exams"
 
     id = db.Column(db.Integer, primary_key=True)
-    ext_id = db.Column(db.String(40), unique=True, nullable=False, index=True)
-    domain = db.Column(db.Integer, nullable=False)  # 1 a 4
+    code = db.Column(db.String(40), unique=True, nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    exam_date = db.Column(db.Date, nullable=True)
+    duration_minutes = db.Column(db.Integer, nullable=True)  # duración oficial, informativa
+    minutes_per_question = db.Column(db.Integer, nullable=False, default=2)
+    pass_threshold_pct = db.Column(db.Integer, nullable=False)  # orientativo, nunca predicción
+    desired_retention = db.Column(db.Float, nullable=False, default=0.9)  # para FSRS (#16)
+    archived = db.Column(db.Boolean, nullable=False, default=False, server_default=false())
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+
+    domains = db.relationship("Domain", back_populates="exam", order_by="Domain.number")
+    formats = db.relationship("QuestionFormat", back_populates="exam", order_by="QuestionFormat.option_count")
+
+
+class Domain(db.Model):
+    __tablename__ = "domains"
+    __table_args__ = (db.UniqueConstraint("exam_id", "number", name="uq_domains_exam_number"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    exam_id = db.Column(db.Integer, db.ForeignKey("exams.id", name="fk_domains_exam"), nullable=False)
+    number = db.Column(db.Integer, nullable=False)  # el que usa la guía oficial: 1, 2, 3…
+    name = db.Column(db.String(200), nullable=False)
+    short_name = db.Column(db.String(40), nullable=False)
+    weight = db.Column(db.Integer, nullable=False)  # porcentaje; los de un examen suman 100
+
+    exam = db.relationship("Exam", back_populates="domains")
+    skills = db.relationship("Skill", back_populates="domain", order_by="Skill.code")
+
+
+class Skill(db.Model):
+    """Habilidad de la guía oficial. Opcional: la usan la cobertura y el kit (#20).
+
+    Question.skill sigue siendo el código en texto, sin clave ajena: las
+    preguntas pueden citar habilidades que todavía no se han dado de alta.
+    """
+
+    __tablename__ = "skills"
+    __table_args__ = (db.UniqueConstraint("domain_id", "code", name="uq_skills_domain_code"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    domain_id = db.Column(db.Integer, db.ForeignKey("domains.id", name="fk_skills_domain"), nullable=False)
+    code = db.Column(db.String(20), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+
+    domain = db.relationship("Domain", back_populates="skills")
+
+
+class QuestionFormat(db.Model):
+    """Formato de pregunta que admite un examen: cuántas opciones y cuántas correctas.
+
+    Una pregunta no apunta a su formato: se deduce de len(options) y
+    len(correct), y el validador comprueba que el examen lo admita.
+    """
+
+    __tablename__ = "question_formats"
+    __table_args__ = (
+        db.UniqueConstraint("exam_id", "option_count", "correct_count", name="uq_question_formats_exam_shape"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    exam_id = db.Column(db.Integer, db.ForeignKey("exams.id", name="fk_question_formats_exam"), nullable=False)
+    option_count = db.Column(db.Integer, nullable=False)
+    correct_count = db.Column(db.Integer, nullable=False)
+    target_share = db.Column(db.Float, nullable=True)  # proporción objetivo en el banco, 0-1
+
+    exam = db.relationship("Exam", back_populates="formats")
+
+
+class Question(db.Model):
+    __tablename__ = "questions"
+    # ext_id es único dentro de cada examen, no en todo el banco: dos
+    # exámenes pueden numerar sus preguntas igual.
+    __table_args__ = (db.UniqueConstraint("exam_id", "ext_id", name="uq_questions_exam_ext_id"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    exam_id = db.Column(db.Integer, db.ForeignKey("exams.id", name="fk_questions_exam"), nullable=False, index=True)
+    domain_id = db.Column(db.Integer, db.ForeignKey("domains.id", name="fk_questions_domain"), nullable=False)
+    ext_id = db.Column(db.String(40), nullable=False, index=True)
     skill = db.Column(db.String(20), nullable=False)  # código de la guía, ej. "2.1.3"
     type = db.Column(db.String(1), nullable=False)  # "s" única, "m" múltiple
     stem = db.Column(db.Text, nullable=False)
@@ -40,6 +122,8 @@ class Question(db.Model):
     source = db.Column(db.String(10), nullable=False, default="seed")  # "seed" | "import"
     active = db.Column(db.Boolean, nullable=False, default=True)
 
+    exam = db.relationship("Exam")
+    domain = db.relationship("Domain")
     attempts = db.relationship("Attempt", back_populates="question")
 
 
@@ -47,8 +131,9 @@ class StudySession(db.Model):
     __tablename__ = "study_sessions"
 
     id = db.Column(db.Integer, primary_key=True)
+    exam_id = db.Column(db.Integer, db.ForeignKey("exams.id", name="fk_study_sessions_exam"), nullable=False)
     mode = db.Column(db.String(20), nullable=False)  # simulacro | rapida | dominio | fallos
-    domain = db.Column(db.Integer, nullable=True)  # solo relevante en modo "dominio"
+    domain = db.Column(db.Integer, nullable=True)  # número de dominio, solo en modo "dominio"
     started_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
     finished_at = db.Column(db.DateTime(timezone=True), nullable=True)
     question_count = db.Column(db.Integer, nullable=False, default=0)

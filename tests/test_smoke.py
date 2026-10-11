@@ -78,7 +78,7 @@ def test_la_portada_cuenta_los_fallos(app, logged_in):
 
     with app.app_context():
         pregunta = Question.query.filter_by(active=True).first()
-        tanda = StudySession(mode="rapida", question_count=1)
+        tanda = StudySession(exam_id=pregunta.exam_id, mode="rapida", question_count=1)
         db.session.add(tanda)
         db.session.commit()
         db.session.add(

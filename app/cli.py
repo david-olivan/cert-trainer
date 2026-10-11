@@ -8,9 +8,10 @@ import click
 from flask import current_app
 from flask.cli import with_appcontext
 
+from app.exams import current_exam
 from app.extensions import db
 from app.import_validation import question_to_short_format, validate_import
-from app.models import Attempt, Question, StudySession, User, utcnow
+from app.models import Attempt, Domain, Question, StudySession, User, utcnow
 from app.progress import reset_progress
 from app.sampling import DOMAIN_WEIGHTS, weighted_sample
 
@@ -44,8 +45,14 @@ def import_questions(fichero):
 @click.argument("fichero", type=click.Path(dir_okay=False))
 @with_appcontext
 def export_questions(fichero):
-    """Vuelca el banco completo (preguntas activas) a FICHERO en formato corto."""
-    questions = Question.query.filter_by(active=True).order_by(Question.ext_id).all()
+    """Vuelca las preguntas activas del examen en curso a FICHERO en formato corto.
+
+    El formato corto todavía no dice a qué examen pertenece cada pregunta
+    (llega con el kit, #20): mientras tanto se exporta solo el examen en curso.
+    """
+    questions = (
+        Question.query.filter_by(active=True, exam_id=current_exam().id).order_by(Question.ext_id).all()
+    )
     data = [question_to_short_format(q) for q in questions]
     with open(fichero, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -193,6 +200,7 @@ def db_seed_demo(reset):
     # capturas de pantalla de la misma pantalla se pueden comparar. Se
     # siembra también el `random` global porque es el que usa
     # app.sampling.weighted_sample para elegir las preguntas de cada tanda.
+    exam = current_exam()
     rng = random.Random(20260915)
     random.seed(20260915)
     # Generador aparte para las señales de #13: si tirasen del mismo `rng`,
@@ -207,7 +215,12 @@ def db_seed_demo(reset):
     for mode, count, days_ago in DEMO_SESSIONS:
         domain = rng.choice(sorted(DOMAIN_WEIGHTS)) if mode == "dominio" else None
         if domain is not None:
-            pool = Question.query.filter_by(active=True, domain=domain).all()
+            pool = (
+                Question.query.join(Domain, Question.domain_id == Domain.id)
+                .filter(Question.active.is_(True), Question.exam_id == exam.id, Domain.number == domain)
+                .order_by(Question.id)
+                .all()
+            )
             rng.shuffle(pool)
             questions = pool[:count]
         else:
@@ -217,6 +230,7 @@ def db_seed_demo(reset):
 
         started_at = now - timedelta(days=days_ago, hours=rng.randint(0, 10))
         study_session = StudySession(
+            exam_id=exam.id,
             mode=mode,
             domain=domain,
             started_at=started_at,
@@ -232,7 +246,7 @@ def db_seed_demo(reset):
         answered_at = started_at
         correct_count = 0
         for question in questions:
-            is_correct = rng.random() < DEMO_ACCURACY[question.domain]
+            is_correct = rng.random() < DEMO_ACCURACY[question.domain.number]
             seconds = _demo_seconds(is_correct, rng)
             answered_at = answered_at + timedelta(seconds=seconds)
             db.session.add(

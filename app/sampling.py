@@ -7,7 +7,9 @@ importa DOMAIN_WEIGHTS de aquí.
 """
 import random
 
-from app.models import Attempt, Question
+from app.exams import current_exam
+from app.extensions import db
+from app.models import Attempt, Domain, Question
 
 DOMAIN_WEIGHTS = {1: 24, 2: 28, 3: 24, 4: 24}
 
@@ -29,16 +31,17 @@ PASS_THRESHOLD_PCT = 72  # umbral orientativo, nunca predicción de resultado
 FALLOS_MAX = 20
 
 
-def _active_questions_by_domain():
-    by_domain = {1: [], 2: [], 3: [], 4: []}
-    for q in Question.query.filter_by(active=True).all():
-        by_domain[q.domain].append(q)
+def _active_questions_by_domain(exam):
+    number_by_domain_id = {d.id: d.number for d in exam.domains}
+    by_domain = {number: [] for number in number_by_domain_id.values()}
+    for q in Question.query.filter_by(active=True, exam_id=exam.id).all():
+        by_domain[number_by_domain_id[q.domain_id]].append(q)
     return by_domain
 
 
 def weighted_sample(n, pool_by_domain=None):
     """Muestrea `n` preguntas respetando el peso oficial de cada dominio."""
-    by_domain = pool_by_domain or _active_questions_by_domain()
+    by_domain = pool_by_domain or _active_questions_by_domain(current_exam())
     out = []
     for domain, weight in DOMAIN_WEIGHTS.items():
         pool = by_domain.get(domain, [])[:]
@@ -62,10 +65,16 @@ def build_queue(mode, domain=None):
     Puerto directo de build()/weighted() del prototipo
     (reference/entrenador-artefacto.html).
     """
+    exam = current_exam()
+
     if mode == "dominio":
         if domain not in DOMAIN_WEIGHTS:
             raise ValueError("Dominio fuera de rango (debe ser 1-4).")
-        pool = Question.query.filter_by(active=True, domain=domain).all()
+        pool = (
+            Question.query.join(Domain, Question.domain_id == Domain.id)
+            .filter(Question.active.is_(True), Question.exam_id == exam.id, Domain.number == domain)
+            .all()
+        )
         random.shuffle(pool)
         return pool
 
@@ -74,7 +83,7 @@ def build_queue(mode, domain=None):
 
         counts = (
             Attempt.query.join(Question)
-            .filter(Attempt.is_correct.is_(False), Question.active.is_(True))
+            .filter(Attempt.is_correct.is_(False), Question.active.is_(True), Question.exam_id == exam.id)
             .with_entities(Attempt.question_id, func.count(Attempt.id).label("fails"))
             .group_by(Attempt.question_id)
             .order_by(func.count(Attempt.id).desc())
@@ -89,18 +98,19 @@ def build_queue(mode, domain=None):
         return weighted_sample(10)
 
     if mode == "simulacro":
-        total_active = Question.query.filter_by(active=True).count()
+        total_active = Question.query.filter_by(active=True, exam_id=exam.id).count()
         return weighted_sample(total_active)
 
     raise ValueError(f"Modo de práctica desconocido: {mode!r}")
 
 
-def domain_readiness(domain):
+def domain_readiness(exam, domain):
     """Porcentaje de aciertos acumulado en un dominio, o None si no hay intentos."""
     rows = (
-        Attempt.query.join(Question)
-        .filter(Question.domain == domain)
-        .with_entities(Attempt.is_correct)
+        db.session.query(Attempt.is_correct)
+        .join(Question, Attempt.question_id == Question.id)
+        .join(Domain, Question.domain_id == Domain.id)
+        .filter(Question.exam_id == exam.id, Domain.number == domain)
         .all()
     )
     if not rows:

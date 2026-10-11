@@ -6,6 +6,7 @@ reference/formato-preguntas.md.
 """
 from dataclasses import dataclass, field
 
+from app.exams import current_exam
 from app.models import Question
 
 REQUIRED_KEYS = {"id", "dom", "q", "o", "ok", "w"}
@@ -21,16 +22,23 @@ def _reject(rejected, identifier, reason):
     rejected.append((identifier, reason))
 
 
-def validate_import(raw_items, existing_ext_ids=None):
+def validate_import(raw_items, exam=None, existing_ext_ids=None):
     """Valida una lista de preguntas en formato corto (id/dom/hab/t/q/o/ok/w/h).
 
-    `existing_ext_ids` permite comprobar duplicados contra la base de datos
-    sin golpearla por cada pregunta del bloque (se consulta una vez fuera).
-    Devuelve un ValidationResult con las preguntas aceptadas normalizadas al
-    formato largo del modelo Question y los motivos de descarte de las demás.
+    Las preguntas entran en `exam` (por defecto, el examen en curso: ver
+    app/exams.py), y su `dom` se resuelve contra los dominios de ese
+    examen. `existing_ext_ids` permite comprobar duplicados sin golpear la
+    base por cada pregunta del bloque; si no se pasa, se consultan una vez
+    los del examen. Devuelve un ValidationResult con las preguntas aceptadas
+    normalizadas al formato largo del modelo Question y los motivos de
+    descarte de las demás.
     """
+    exam = exam or current_exam()
+    domain_id_by_number = {d.number: d.id for d in exam.domains}
     if existing_ext_ids is None:
-        existing_ext_ids = {q.ext_id for q in Question.query.with_entities(Question.ext_id).all()}
+        existing_ext_ids = {
+            ext_id for (ext_id,) in Question.query.filter_by(exam_id=exam.id).with_entities(Question.ext_id)
+        }
 
     result = ValidationResult()
     seen_in_block = set()
@@ -66,8 +74,13 @@ def validate_import(raw_items, existing_ext_ids=None):
             continue
 
         domain = item.get("dom")
-        if not isinstance(domain, int) or not (1 <= domain <= 4):
-            _reject(result.rejected, label, f"campo 'dom' fuera de rango (1-4): {domain!r}")
+        if isinstance(domain, bool) or domain not in domain_id_by_number:
+            numbers = ", ".join(str(n) for n in sorted(domain_id_by_number))
+            _reject(
+                result.rejected,
+                label,
+                f"campo 'dom' no es un dominio de {exam.code} (admite {numbers}): {domain!r}",
+            )
             continue
 
         question_type = item.get("t", "s")
@@ -122,8 +135,9 @@ def validate_import(raw_items, existing_ext_ids=None):
         seen_in_block.add(ext_id)
         result.accepted.append(
             {
+                "exam_id": exam.id,
+                "domain_id": domain_id_by_number[domain],
                 "ext_id": ext_id,
-                "domain": domain,
                 "skill": item.get("hab", ""),
                 "type": question_type,
                 "stem": stem,
@@ -142,7 +156,7 @@ def question_to_short_format(question: Question) -> dict:
     """Formato corto de exportación (id/dom/hab/t/q/o/ok/w/h), espejo de import."""
     item = {
         "id": question.ext_id,
-        "dom": question.domain,
+        "dom": question.domain.number,
         "hab": question.skill,
         "t": question.type,
         "q": question.stem,

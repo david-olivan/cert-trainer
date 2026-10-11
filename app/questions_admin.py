@@ -9,6 +9,7 @@ import json
 from flask import Blueprint, jsonify, render_template, request
 from flask_login import login_required
 
+from app.exams import current_exam
 from app.extensions import db
 from app.import_validation import question_to_short_format, validate_import
 from app.models import Question
@@ -19,7 +20,7 @@ bp = Blueprint("questions_admin", __name__, url_prefix="/preguntas")
 @bp.route("/", methods=["GET"])
 @login_required
 def index():
-    total = Question.query.filter_by(active=True).count()
+    total = Question.query.filter_by(active=True, exam_id=current_exam().id).count()
     return render_template("import.html", total=total)
 
 
@@ -34,9 +35,12 @@ def preview():
     except json.JSONDecodeError as exc:
         return jsonify(error=f"JSON inválido: {exc}"), 400
 
-    result = validate_import(items)
+    exam = current_exam()
+    result = validate_import(items, exam=exam)
+    number_by_domain_id = {d.id: d.number for d in exam.domains}
     return jsonify(
-        accepted=result.accepted,
+        # La vista previa enseña el número de dominio, no su id interno.
+        accepted=[{**item, "domain": number_by_domain_id[item["domain_id"]]} for item in result.accepted],
         rejected=[{"identifier": ident, "reason": reason} for ident, reason in result.rejected],
     )
 
@@ -67,7 +71,11 @@ def confirm():
 @bp.route("/exportar", methods=["GET"])
 @login_required
 def export():
-    questions = Question.query.filter_by(active=True).order_by(Question.ext_id).all()
+    # El formato corto todavía no dice a qué examen pertenece cada pregunta
+    # (llega con el kit, #20), así que se exporta solo el examen en curso.
+    questions = (
+        Question.query.filter_by(active=True, exam_id=current_exam().id).order_by(Question.ext_id).all()
+    )
     data = [question_to_short_format(q) for q in questions]
     response = jsonify(data)
     response.headers["Content-Disposition"] = "attachment; filename=questions.export.json"
