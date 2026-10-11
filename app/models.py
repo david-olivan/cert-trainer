@@ -40,6 +40,7 @@ class Exam(db.Model):
     minutes_per_question = db.Column(db.Integer, nullable=False, default=2)
     pass_threshold_pct = db.Column(db.Integer, nullable=False)  # orientativo, nunca predicción
     desired_retention = db.Column(db.Float, nullable=False, default=0.9)  # para FSRS (#16)
+    new_per_day = db.Column(db.Integer, nullable=False, default=10, server_default="10")  # «Repaso de hoy» (#17)
     archived = db.Column(db.Boolean, nullable=False, default=False, server_default=false())
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
 
@@ -132,7 +133,8 @@ class StudySession(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     exam_id = db.Column(db.Integer, db.ForeignKey("exams.id", name="fk_study_sessions_exam"), nullable=False)
-    mode = db.Column(db.String(20), nullable=False)  # simulacro | rapida | dominio | fallos
+    # simulacro | rapida | dominio | repaso; «fallos» solo en sesiones anteriores a #17
+    mode = db.Column(db.String(20), nullable=False)
     domain = db.Column(db.Integer, nullable=True)  # número de dominio, solo en modo "dominio"
     started_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
     finished_at = db.Column(db.DateTime(timezone=True), nullable=True)

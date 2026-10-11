@@ -65,13 +65,14 @@ def test_no_se_indexa(client):
     assert "noindex" in robots.headers["X-Robots-Tag"]
 
 
-def test_la_portada_cuenta_los_fallos(app, logged_in):
-    """El recuento de fallos de la portada, con un fallo de verdad en la base.
+def test_la_portada_se_pinta_con_fallos_registrados(app, logged_in):
+    """La portada con un fallo de verdad en la base.
 
-    Esta consulta hacía un SELECT DISTINCT sobre la entidad Question, que
-    arrastra columnas json; Postgres no sabe compararlas por igualdad y
-    devolvía 500 mientras en sqlite pasaba. Va con datos porque un
-    recuento a cero puede salir bien por accidente.
+    Una consulta de la portada hacía un SELECT DISTINCT sobre la entidad
+    Question, que arrastra columnas json; Postgres no sabe compararlas por
+    igualdad y devolvía 500 mientras en sqlite pasaba. El recuento de
+    fallos ya no existe (#17), pero la prueba se queda: va con datos porque
+    una portada vacía puede salir bien por accidente.
     """
     from app.extensions import db
     from app.models import Attempt, Question, StudySession

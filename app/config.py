@@ -98,4 +98,6 @@ class Config:
         self.REMEMBER_COOKIE_DURATION = 60 * 60 * 24 * 30  # 30 días
         self.PERMANENT_SESSION_LIFETIME = 60 * 60 * 24 * 30
 
-        self.MINUTES_PER_QUESTION = 2
+        # Zona horaria del usuario: decide dónde acaba «hoy» para el repaso
+        # diario (#17). Un repaso que vence esta tarde ya cuenta por la mañana.
+        self.TIMEZONE = os.environ.get("TIMEZONE", "Europe/Madrid")

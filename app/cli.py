@@ -11,7 +11,7 @@ from flask.cli import with_appcontext
 from app.exams import current_exam
 from app.extensions import db
 from app.import_validation import question_to_short_format, validate_import
-from app.models import Attempt, Domain, Question, StudySession, User, utcnow
+from app.models import Attempt, Domain, Question, ReviewState, StudySession, User, utcnow
 from app.progress import reset_progress
 from app.sampling import weighted_sample
 from app.srs import rebuild as rebuild_review_states
@@ -120,7 +120,7 @@ DEMO_SESSIONS = [
     ("dominio", 11, 15),
     ("simulacro", 20, 12),
     ("rapida", 10, 8),
-    ("fallos", 12, 5),
+    ("repaso", 12, 5),
     ("rapida", 10, 2),
 ]
 
@@ -287,7 +287,9 @@ def db_reset_progress(yes):
     """Borra todo el progreso (sesiones e intentos). El banco no se toca."""
     sessions = StudySession.query.count()
     attempts = Attempt.query.count()
-    if not sessions and not attempts:
+    # También los estados FSRS: si quedara alguno sin respuestas detrás, el
+    # repaso de hoy seguiría ofreciendo preguntas de un progreso ya borrado.
+    if not sessions and not attempts and not ReviewState.query.count():
         click.echo("No hay progreso que borrar.")
         return
 

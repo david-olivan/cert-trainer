@@ -61,7 +61,7 @@ def start():
     mode = payload.get("mode")
     domain = payload.get("domain")
 
-    if mode not in ("simulacro", "rapida", "dominio", "fallos"):
+    if mode not in ("simulacro", "rapida", "dominio", "repaso"):
         return jsonify(error="Modo de práctica desconocido."), 400
     exam = current_exam()
     if mode == "dominio" and domain is None:
@@ -73,6 +73,8 @@ def start():
         return jsonify(error=str(exc)), 400
 
     if not questions:
+        if mode == "repaso":
+            return jsonify(error="No tienes nada pendiente hoy. Vuelve al inicio y haz una tanda rápida."), 409
         return jsonify(error="No hay preguntas disponibles para este modo todavía."), 409
 
     study_session = StudySession(
