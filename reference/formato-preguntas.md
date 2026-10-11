@@ -18,8 +18,8 @@ Es el formato que produce la skill `preguntas-aib-c01` y el que usa `data/questi
 
 | Clave | Modelo | Notas |
 |---|---|---|
-| `id` | `ext_id` | Único. Prefijo `d<dominio>-` y número |
-| `dom` | `domain` | 1 a 4 |
+| `id` | `ext_id` | Único dentro de su examen. Prefijo `d<dominio>-` y número |
+| `dom` | `domain_id` | Número de un dominio del examen (en AIB-C01, 1 a 4); se resuelve a su fila de `domains` |
 | `hab` | `skill` | Código de habilidad de la guía oficial |
 | `t` | `type` | `s` respuesta única, `m` respuesta múltiple |
 | `q` | `stem` | Escenario y pregunta |
@@ -27,6 +27,10 @@ Es el formato que produce la skill `preguntas-aib-c01` y el que usa `data/questi
 | `ok` | `correct` | Índices base 0. Dos elementos en las de tipo `m` |
 | `w` | `explanation` | Se muestra tras responder |
 | `h` | `hint` | Opcional, bajo demanda antes de responder |
+
+## Examen al que va cada pregunta
+
+El formato todavía no dice a qué examen pertenece la pregunta: el bloque entero entra en el examen en curso, que hoy es AIB-C01, y la exportación saca solo ese examen. El kit de generación (#20) añadirá el examen al formato.
 
 ## Estado del banco sembrado
 

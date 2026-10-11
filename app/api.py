@@ -11,6 +11,7 @@ import random
 from flask import Blueprint, jsonify, request, session
 from flask_login import current_user, login_required
 
+from app.exams import current_exam
 from app.extensions import db
 from app.models import Attempt, Question, StudySession
 from app.sampling import DOMAIN_SHORT, build_queue
@@ -18,6 +19,10 @@ from app.sampling import DOMAIN_SHORT, build_queue
 bp = Blueprint("api", __name__, url_prefix="/api/session")
 
 SESSION_KEY = "practice_queue"
+# Versión del formato del estado de la tanda. La cola guarda ids de
+# Question desde la 2; una tanda empezada antes (con ext_id) no se puede
+# continuar y se descarta.
+QUEUE_VERSION = 2
 
 CONFIDENCE_VALUES = ("sure", "unsure")
 
@@ -27,8 +32,8 @@ def _public_question(question, option_order):
     shuffled_options = [question.options[i] for i in option_order]
     return {
         "ext_id": question.ext_id,
-        "domain": question.domain,
-        "domain_short": DOMAIN_SHORT[question.domain],
+        "domain": question.domain.number,
+        "domain_short": DOMAIN_SHORT[question.domain.number],
         "skill": question.skill,
         "type": question.type,
         "stem": question.stem,
@@ -40,6 +45,9 @@ def _public_question(question, option_order):
 def _current_state():
     state = session.get(SESSION_KEY)
     if not state:
+        return None
+    if state.get("version") != QUEUE_VERSION:
+        session.pop(SESSION_KEY, None)
         return None
     return state
 
@@ -64,7 +72,12 @@ def start():
     if not questions:
         return jsonify(error="No hay preguntas disponibles para este modo todavía."), 409
 
-    study_session = StudySession(mode=mode, domain=domain if mode == "dominio" else None, question_count=len(questions))
+    study_session = StudySession(
+        exam_id=current_exam().id,
+        mode=mode,
+        domain=domain if mode == "dominio" else None,
+        question_count=len(questions),
+    )
     db.session.add(study_session)
     db.session.commit()
 
@@ -75,7 +88,7 @@ def start():
     for q in questions:
         order = list(range(len(q.options)))
         random.shuffle(order)
-        option_orders[q.ext_id] = order
+        option_orders[str(q.id)] = order  # claves de texto: la sesión se serializa como JSON
 
     # «Primero piensa» (issue #14) lo decide el servidor al empezar, no el
     # cliente: es la preferencia guardada, salvo en simulacro, porque el
@@ -83,11 +96,12 @@ def start():
     recall_first = bool(current_user.recall_first) and mode != "simulacro"
 
     session[SESSION_KEY] = {
+        "version": QUEUE_VERSION,
         "study_session_id": study_session.id,
         "recall_first": recall_first,
         "mode": mode,
         "domain": domain,
-        "queue": [q.ext_id for q in questions],
+        "queue": [q.id for q in questions],
         "option_orders": option_orders,
         "index": 0,
         "results": [],  # True/False por pregunta respondida
@@ -100,7 +114,7 @@ def start():
         index=0,
         minutes_per_question=2,
         recall_first=recall_first,
-        question=_public_question(first_question, option_orders[first_question.ext_id]),
+        question=_public_question(first_question, option_orders[str(first_question.id)]),
     )
 
 
@@ -138,12 +152,12 @@ def answer():
     if not recall_first:
         seconds_to_reveal = None
 
-    ext_id = state["queue"][state["index"]]
-    question = Question.query.filter_by(ext_id=ext_id).first()
+    question_id = state["queue"][state["index"]]
+    question = db.session.get(Question, question_id)
     if question is None:
         return jsonify(error="La pregunta ya no existe en el banco."), 409
 
-    order = state["option_orders"][ext_id]
+    order = state["option_orders"][str(question_id)]
     # `selected` llega en índices del orden barajado; se traduce al índice
     # original para comparar contra Question.correct.
     selected_original = sorted(order[i] for i in selected if 0 <= i < len(order))
@@ -190,8 +204,8 @@ def next_question():
     if state["index"] >= len(state["queue"]):
         return jsonify(done=True)
 
-    ext_id = state["queue"][state["index"]]
-    question = Question.query.filter_by(ext_id=ext_id).first()
+    question_id = state["queue"][state["index"]]
+    question = db.session.get(Question, question_id)
     if question is None:
         return jsonify(error="La pregunta ya no existe en el banco."), 409
 
@@ -199,7 +213,7 @@ def next_question():
         done=False,
         index=state["index"],
         total=len(state["queue"]),
-        question=_public_question(question, state["option_orders"][ext_id]),
+        question=_public_question(question, state["option_orders"][str(question_id)]),
     )
 
 
@@ -220,11 +234,11 @@ def finish():
     pct = round(correct / answered * 100) if answered else 0
 
     per_domain = {}
-    for ext_id, result in zip(state["queue"][:answered], results):
-        question = Question.query.filter_by(ext_id=ext_id).first()
+    for question_id, result in zip(state["queue"][:answered], results):
+        question = db.session.get(Question, question_id)
         if question is None:
             continue
-        bucket = per_domain.setdefault(question.domain, {"total": 0, "correct": 0})
+        bucket = per_domain.setdefault(question.domain.number, {"total": 0, "correct": 0})
         bucket["total"] += 1
         bucket["correct"] += 1 if result else 0
 

@@ -32,7 +32,7 @@ No las reabras sin motivo nuevo; si crees que alguna está mal, dilo antes de im
 
 ## Ponderación del examen
 
-Las tandas se muestrean respetando el peso oficial de cada dominio. Hoy vive en `app/sampling.py` y está repetido en el JavaScript y en el validador. Con el modelo de varios exámenes (hito 1 de la fase 2) pasa a la base de datos, que será el único punto de verdad: no vuelvas a escribir dominios ni pesos en el código.
+Las tandas se muestrean respetando el peso oficial de cada dominio. Desde #7 los dominios, pesos y formatos de AIB-C01 están en la base de datos (tablas `exams`, `domains` y `question_formats`, sembradas por su migración). Hasta que se cierre #15, el código sigue leyendo las constantes de `app/sampling.py` y del JavaScript, que **tienen que coincidir** con la base. #15 las elimina y la base queda como único punto de verdad: no vuelvas a escribir dominios ni pesos en el código.
 
 | Dominio | Nombre | Peso |
 |---|---|---|

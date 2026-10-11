@@ -3,8 +3,9 @@ from flask import Blueprint, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import distinct, func
 
+from app.exams import current_exam
 from app.extensions import db
-from app.models import Attempt, Question, StudySession
+from app.models import Attempt, Domain, Question, StudySession
 from app.progress import reset_progress
 from app.sampling import (
     DOMAIN_NAMES,
@@ -20,10 +21,16 @@ bp = Blueprint("practice", __name__)
 @bp.route("/")
 @login_required
 def home():
-    readiness = {d: domain_readiness(d) for d in DOMAIN_WEIGHTS}
-    question_counts = {
-        d: Question.query.filter_by(active=True, domain=d).count() for d in DOMAIN_WEIGHTS
-    }
+    exam = current_exam()
+    readiness = {d: domain_readiness(exam, d) for d in DOMAIN_WEIGHTS}
+    counts_by_number = dict(
+        db.session.query(Domain.number, func.count(Question.id))
+        .join(Question, Question.domain_id == Domain.id)
+        .filter(Domain.exam_id == exam.id, Question.active.is_(True))
+        .group_by(Domain.number)
+        .all()
+    )
+    question_counts = {d: counts_by_number.get(d, 0) for d in DOMAIN_WEIGHTS}
     total_questions = sum(question_counts.values())
     # Cuenta preguntas distintas falladas contando identificadores, no filas
     # enteras. Un SELECT DISTINCT sobre la entidad Question arrastra las
@@ -36,11 +43,11 @@ def home():
         db.session.query(func.count(distinct(Attempt.question_id)))
         .select_from(Attempt)
         .join(Question, Attempt.question_id == Question.id)
-        .filter(Attempt.is_correct.is_(False), Question.active.is_(True))
+        .filter(Attempt.is_correct.is_(False), Question.active.is_(True), Question.exam_id == exam.id)
         .scalar()
     )
     history = (
-        StudySession.query.filter(StudySession.finished_at.isnot(None))
+        StudySession.query.filter(StudySession.exam_id == exam.id, StudySession.finished_at.isnot(None))
         .order_by(StudySession.finished_at.desc())
         .limit(6)
         .all()
