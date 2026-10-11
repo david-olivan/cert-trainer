@@ -60,6 +60,17 @@
     </button>
   </div>
 
+  <form class="list" style="margin-top:var(--s-3)" method="post"
+        action="{{ url_for('practice.toggle_recall_first') }}">
+    <button type="submit" class="row" role="switch" aria-checked="{{ 'true' if recall_first else 'false' }}">
+      <span class="row-body">
+        <span class="row-title">Primero piensa</span>
+        <span class="row-sub">Ves solo el enunciado e intentas recordar la respuesta antes de ver las opciones. No se aplica al simulacro.</span>
+      </span>
+      <span class="switch" aria-hidden="true"></span>
+    </button>
+  </form>
+
   <h2 class="section-title">Por dominio</h2>
   <div class="list">
     {% for d in [1, 2, 3, 4] %}

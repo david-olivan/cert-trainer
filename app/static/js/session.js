@@ -32,6 +32,11 @@
     verdict: null,
     // Si se pidió la pista de la pregunta en curso antes de responder.
     hintUsed: false,
+    // «Primero piensa»: lo decide el servidor al empezar la tanda. Con el
+    // modo activo, las opciones no se ven hasta pedirlas.
+    recallFirst: false,
+    revealed: true,
+    secondsToReveal: null,
     timed: mode === "simulacro",
     secondsLeft: 0,
     questionStartedAt: null,
@@ -91,6 +96,7 @@
       .then(function (data) {
         state.total = data.total;
         state.results = [];
+        state.recallFirst = !!data.recall_first;
         if (state.timed) {
           state.secondsLeft = data.total * data.minutes_per_question * 60;
           startTicker();
@@ -108,6 +114,11 @@
     state.shown = false;
     state.verdict = null;
     state.hintUsed = false;
+    state.revealed = !state.recallFirst;
+    state.secondsToReveal = null;
+    // El tiempo cuenta desde que aparece el enunciado, también en
+    // «primero piensa»: pensar antes de ver las opciones es parte de
+    // responder.
     state.questionStartedAt = Date.now();
     mountQuestion();
   }
@@ -147,10 +158,12 @@
       prog: node.querySelector(".prog i"),
       stem: node.querySelector(".stem"),
       instr: node.querySelector(".instr"),
+      recallNote: node.querySelector(".recall-note"),
       opts: node.querySelector(".opts"),
       hintline: node.querySelector(".hintline"),
       hintbtn: node.querySelector(".hintbtn"),
       verdictSlot: node.querySelector(".verdict-slot"),
+      reveal: node.querySelector('[data-act="reveal"]'),
       check: node.querySelector('[data-act="check"]'),
       checkUnsure: node.querySelector('[data-act="check-unsure"]'),
       quit: node.querySelector('[data-act="quit"]'),
@@ -172,8 +185,7 @@
     view.check.textContent = verb + " · seguro";
     view.checkUnsure.textContent = verb + " · dudo";
 
-    view.keyhint.textContent =
-      "Teclas 1–" + q.options.length + " para elegir · espacio si estás seguro · D si dudas";
+    paintKeyhint();
 
     q.options.forEach(function (text, i) {
       var opt = tpl("tpl-option");
@@ -196,10 +208,38 @@
     view.checkUnsure.addEventListener("click", function () { check("unsure"); });
     view.quit.addEventListener("click", quit);
 
+    if (!state.revealed) {
+      view.opts.hidden = true;
+      view.check.hidden = true;
+      view.checkUnsure.hidden = true;
+      view.recallNote.hidden = false;
+      view.reveal.hidden = false;
+      view.reveal.addEventListener("click", reveal);
+    }
+
     show(node);
     // La barra de progreso crece al entrar en la pregunta, ya con el color
     // de cada tramo recorrido.
     requestAnimationFrame(paintProgress);
+  }
+
+  function paintKeyhint() {
+    view.keyhint.textContent = state.revealed
+      ? "Teclas 1–" + state.question.options.length + " para elegir · espacio si estás seguro · D si dudas"
+      : "Piensa la respuesta · espacio para ver las opciones";
+  }
+
+  function reveal() {
+    if (state.revealed) return;
+    state.revealed = true;
+    state.secondsToReveal = Math.round((Date.now() - state.questionStartedAt) / 1000);
+    view.reveal.hidden = true;
+    view.recallNote.hidden = true;
+    view.opts.hidden = false;
+    if (!reduceMotion) view.opts.classList.add("q-enter");
+    view.check.hidden = false;
+    view.checkUnsure.hidden = false;
+    paintKeyhint();
   }
 
   // Un único elemento a lo ancho de toda la barra, con un degradado de
@@ -256,6 +296,7 @@
       seconds_spent: seconds,
       confidence: confidence,
       hint_used: state.hintUsed,
+      seconds_to_reveal: state.secondsToReveal,
     })
       .then(function (data) {
         state.verdict = data;
@@ -408,6 +449,10 @@
       if (focused === view.quit || focused === view.hintbtn ||
           (focused === view.checkUnsure && !view.checkUnsure.hidden)) return;
       e.preventDefault();
+      if (!state.revealed) {
+        reveal();
+        return;
+      }
       // El botón visible ya sabe qué toca (comprobar, siguiente o ver
       // resultado) y un botón deshabilitado ignora el click, así que no
       // hace falta repetir aquí ninguna de las dos decisiones.
@@ -415,7 +460,8 @@
       return;
     }
 
-    if (state.shown || !state.question) return;
+    // Sin opciones a la vista no hay nada que elegir ni que comprobar.
+    if (state.shown || !state.question || !state.revealed) return;
 
     if (e.key === "d" || e.key === "D") {
       e.preventDefault();
