@@ -13,7 +13,7 @@ from app.extensions import db
 from app.import_validation import question_to_short_format, validate_import
 from app.models import Attempt, Domain, Question, StudySession, User, utcnow
 from app.progress import reset_progress
-from app.sampling import DOMAIN_WEIGHTS, weighted_sample
+from app.sampling import weighted_sample
 
 
 @click.group("questions")
@@ -110,6 +110,7 @@ def db_seed():
 # propósito, para que el medidor de inicio muestre los cuatro estados que
 # sabe pintar (por debajo de 60, entre 60 y el umbral, y por encima).
 DEMO_ACCURACY = {1: 0.86, 2: 0.54, 3: 0.71, 4: 0.64}
+DEMO_ACCURACY_DEFAULT = 0.7  # dominios de otros exámenes, más allá del 4
 
 # (modo, número de preguntas, días atrás). Mezcla de los cuatro modos para
 # que el historial de inicio no sea una lista de tandas idénticas.
@@ -213,7 +214,7 @@ def db_seed_demo(reset):
     total_attempts = 0
 
     for mode, count, days_ago in DEMO_SESSIONS:
-        domain = rng.choice(sorted(DOMAIN_WEIGHTS)) if mode == "dominio" else None
+        domain = rng.choice([d.number for d in exam.domains]) if mode == "dominio" else None
         if domain is not None:
             pool = (
                 Question.query.join(Domain, Question.domain_id == Domain.id)
@@ -224,7 +225,7 @@ def db_seed_demo(reset):
             rng.shuffle(pool)
             questions = pool[:count]
         else:
-            questions = weighted_sample(count)
+            questions = weighted_sample(exam, count)
         if not questions:
             continue
 
@@ -246,7 +247,7 @@ def db_seed_demo(reset):
         answered_at = started_at
         correct_count = 0
         for question in questions:
-            is_correct = rng.random() < DEMO_ACCURACY[question.domain.number]
+            is_correct = rng.random() < DEMO_ACCURACY.get(question.domain.number, DEMO_ACCURACY_DEFAULT)
             seconds = _demo_seconds(is_correct, rng)
             answered_at = answered_at + timedelta(seconds=seconds)
             db.session.add(

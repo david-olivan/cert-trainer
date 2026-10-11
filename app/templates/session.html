@@ -91,6 +91,7 @@
     home: "{{ url_for('practice.home') }}"
   };
   window.PASS_THRESHOLD = {{ pass_threshold }};
+  window.DOMAIN_SHORT = {{ domain_short | tojson }};
 </script>
 <script src="{{ url_for('static', filename='js/session.js') }}"></script>
 {% endblock %}

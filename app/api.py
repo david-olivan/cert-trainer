@@ -14,7 +14,7 @@ from flask_login import current_user, login_required
 from app.exams import current_exam
 from app.extensions import db
 from app.models import Attempt, Question, StudySession
-from app.sampling import DOMAIN_SHORT, build_queue
+from app.sampling import build_queue
 
 bp = Blueprint("api", __name__, url_prefix="/api/session")
 
@@ -33,7 +33,7 @@ def _public_question(question, option_order):
     return {
         "ext_id": question.ext_id,
         "domain": question.domain.number,
-        "domain_short": DOMAIN_SHORT[question.domain.number],
+        "domain_short": question.domain.short_name,
         "skill": question.skill,
         "type": question.type,
         "stem": question.stem,
@@ -61,11 +61,12 @@ def start():
 
     if mode not in ("simulacro", "rapida", "dominio", "fallos"):
         return jsonify(error="Modo de práctica desconocido."), 400
-    if mode == "dominio" and domain not in (1, 2, 3, 4):
-        return jsonify(error="Indica un dominio entre 1 y 4."), 400
+    exam = current_exam()
+    if mode == "dominio" and domain is None:
+        return jsonify(error="Falta indicar el dominio. Vuelve al inicio y elige uno."), 400
 
     try:
-        questions = build_queue(mode, domain=domain if mode == "dominio" else None)
+        questions = build_queue(exam, mode, domain=domain if mode == "dominio" else None)
     except ValueError as exc:
         return jsonify(error=str(exc)), 400
 
@@ -73,7 +74,7 @@ def start():
         return jsonify(error="No hay preguntas disponibles para este modo todavía."), 409
 
     study_session = StudySession(
-        exam_id=current_exam().id,
+        exam_id=exam.id,
         mode=mode,
         domain=domain if mode == "dominio" else None,
         question_count=len(questions),
@@ -112,7 +113,7 @@ def start():
         study_session_id=study_session.id,
         total=len(questions),
         index=0,
-        minutes_per_question=2,
+        minutes_per_question=exam.minutes_per_question,
         recall_first=recall_first,
         question=_public_question(first_question, option_orders[str(first_question.id)]),
     )

@@ -420,9 +420,8 @@ button.row:hover .chev { transform: rotate(-45deg) translate(2px, 2px); }
 .col .fill { height: var(--h); }
 @media (prefers-reduced-motion: no-preference) {
   .col .fill { animation: grow var(--t-slow) var(--ease) both; }
-  .meter .col:nth-child(2) .fill { animation-delay: 60ms; }
-  .meter .col:nth-child(3) .fill { animation-delay: 120ms; }
-  .meter .col:nth-child(4) .fill { animation-delay: 180ms; }
+  /* --i lo pone la plantilla: vale para cualquier número de dominios. */
+  .meter .col .fill { animation-delay: calc(var(--i, 0) * 60ms); }
 }
 @keyframes grow { from { height: 0; } to { height: var(--h); } }
 

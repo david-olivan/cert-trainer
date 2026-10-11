@@ -7,13 +7,7 @@ from app.exams import current_exam
 from app.extensions import db
 from app.models import Attempt, Domain, Question, StudySession
 from app.progress import reset_progress
-from app.sampling import (
-    DOMAIN_NAMES,
-    DOMAIN_SHORT,
-    DOMAIN_WEIGHTS,
-    PASS_THRESHOLD_PCT,
-    domain_readiness,
-)
+from app.sampling import FALLOS_MAX, domain_readiness
 
 bp = Blueprint("practice", __name__)
 
@@ -22,7 +16,8 @@ bp = Blueprint("practice", __name__)
 @login_required
 def home():
     exam = current_exam()
-    readiness = {d: domain_readiness(exam, d) for d in DOMAIN_WEIGHTS}
+    domains = exam.domains
+    readiness = {d.number: domain_readiness(exam, d.number) for d in domains}
     counts_by_number = dict(
         db.session.query(Domain.number, func.count(Question.id))
         .join(Question, Question.domain_id == Domain.id)
@@ -30,7 +25,7 @@ def home():
         .group_by(Domain.number)
         .all()
     )
-    question_counts = {d: counts_by_number.get(d, 0) for d in DOMAIN_WEIGHTS}
+    question_counts = {d.number: counts_by_number.get(d.number, 0) for d in domains}
     total_questions = sum(question_counts.values())
     # Cuenta preguntas distintas falladas contando identificadores, no filas
     # enteras. Un SELECT DISTINCT sobre la entidad Question arrastra las
@@ -55,15 +50,15 @@ def home():
 
     return render_template(
         "home.html",
+        exam=exam,
+        domains=domains,
         readiness=readiness,
-        domain_names=DOMAIN_NAMES,
-        domain_short=DOMAIN_SHORT,
-        domain_weights=DOMAIN_WEIGHTS,
         question_counts=question_counts,
         total_questions=total_questions,
         failed_count=failed_count,
+        fallos_max=FALLOS_MAX,
         history=history,
-        pass_threshold=PASS_THRESHOLD_PCT,
+        pass_threshold=exam.pass_threshold_pct,
         recall_first=current_user.recall_first,
     )
 
@@ -80,7 +75,12 @@ def toggle_recall_first():
 @bp.route("/tanda")
 @login_required
 def session_view():
-    return render_template("session.html", pass_threshold=PASS_THRESHOLD_PCT)
+    exam = current_exam()
+    return render_template(
+        "session.html",
+        pass_threshold=exam.pass_threshold_pct,
+        domain_short={d.number: d.short_name for d in exam.domains},
+    )
 
 
 @bp.route("/reiniciar-progreso", methods=["POST"])

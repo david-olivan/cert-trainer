@@ -32,7 +32,7 @@ No las reabras sin motivo nuevo; si crees que alguna está mal, dilo antes de im
 
 ## Ponderación del examen
 
-Las tandas se muestrean respetando el peso oficial de cada dominio. Desde #7 los dominios, pesos y formatos de AIB-C01 están en la base de datos (tablas `exams`, `domains` y `question_formats`, sembradas por su migración). Hasta que se cierre #15, el código sigue leyendo las constantes de `app/sampling.py` y del JavaScript, que **tienen que coincidir** con la base. #15 las elimina y la base queda como único punto de verdad: no vuelvas a escribir dominios ni pesos en el código.
+Las tandas se muestrean respetando el peso oficial de cada dominio. Los dominios, sus pesos y nombres, los formatos de pregunta admitidos, el umbral orientativo y los minutos por pregunta de cada examen viven en la base de datos (tablas `exams`, `domains` y `question_formats`); los de AIB-C01 los sembró la migración de #7. Es el único punto de verdad: **no escribas dominios, pesos, umbrales ni formatos en el código**, ni en Python, ni en las plantillas, ni en el JavaScript, que los recibe del servidor. La tabla de abajo es la referencia de AIB-C01, no una copia que mantener.
 
 | Dominio | Nombre | Peso |
 |---|---|---|

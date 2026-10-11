@@ -35,6 +35,10 @@ def validate_import(raw_items, exam=None, existing_ext_ids=None):
     """
     exam = exam or current_exam()
     domain_id_by_number = {d.number: d.id for d in exam.domains}
+    allowed_shapes = {(f.option_count, f.correct_count) for f in exam.formats}
+    allowed_text = ", ".join(
+        f"{o} opciones con {c} {'correcta' if c == 1 else 'correctas'}" for o, c in sorted(allowed_shapes)
+    )
     if existing_ext_ids is None:
         existing_ext_ids = {
             ext_id for (ext_id,) in Question.query.filter_by(exam_id=exam.id).with_entities(Question.ext_id)
@@ -83,8 +87,8 @@ def validate_import(raw_items, exam=None, existing_ext_ids=None):
             )
             continue
 
-        question_type = item.get("t", "s")
-        if question_type not in ("s", "m"):
+        question_type = item.get("t")
+        if question_type not in (None, "s", "m"):
             _reject(result.rejected, label, f"campo 't' inválido (debe ser 's' o 'm'): {question_type!r}")
             continue
 
@@ -107,20 +111,28 @@ def validate_import(raw_items, exam=None, existing_ext_ids=None):
             )
             continue
 
-        if question_type == "m" and len(set(correct)) != 2:
+        # El formato (cuántas opciones, cuántas correctas) lo dicta el examen.
+        shape = (len(options), len(set(correct)))
+        if shape not in allowed_shapes:
             _reject(
                 result.rejected,
                 label,
-                f"las preguntas de tipo 'm' (múltiple) exigen exactamente 2 índices correctos, hay {len(set(correct))}",
+                f"{shape[0]} opciones con {shape[1]} {'correcta' if shape[1] == 1 else 'correctas'} "
+                f"no es un formato de {exam.code} (admite {allowed_text})",
             )
             continue
-        if question_type == "s" and len(set(correct)) != 1:
+        # 't' es opcional y redundante: si viene, tiene que cuadrar con 'ok'.
+        derived_type = "m" if shape[1] > 1 else "s"
+        if question_type is not None and question_type != derived_type:
             _reject(
                 result.rejected,
                 label,
-                f"las preguntas de tipo 's' (única) exigen exactamente 1 índice correcto, hay {len(set(correct))}",
+                f"campo 't' dice {question_type!r} pero 'ok' tiene {shape[1]} "
+                f"{'correcta' if shape[1] == 1 else 'correctas'}: "
+                f"'s' es para una sola correcta y 'm' para varias",
             )
             continue
+        question_type = derived_type
 
         stem = item.get("q")
         if not isinstance(stem, str) or not stem.strip():
