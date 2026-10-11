@@ -4,7 +4,7 @@ Contexto permanente de este repositorio. Léelo antes de tocar nada.
 
 ## Qué es esto
 
-Un entrenador personal para la certificación **AWS Certified AI Business Strategist (AIB-C01)**. Aplicación Flask con un único usuario: el dueño del repositorio. No es un producto, no habrá registro de usuarios, no habrá multiusuario. Cualquier propuesta que asuma varios usuarios está fuera de alcance salvo que se pida explícitamente.
+Un entrenador personal para la certificación **AWS Certified AI Business Strategist (AIB-C01)**. Aplicación Flask con un único usuario: el dueño del repositorio. Desde la fase 2 admite cualquier examen tipo test, con AIB-C01 como el primero y el prioritario. No es un producto, no habrá registro de usuarios, no habrá multiusuario. Cualquier propuesta que asuma varios usuarios está fuera de alcance salvo que se pida explícitamente.
 
 El examen está en beta desde el 29 de septiembre de 2026 y la insignia de Early Adopter exige certificarse antes del **15 de febrero de 2027**. Esa es la fecha límite real del proyecto: las decisiones de alcance se resuelven a favor de lo que se pueda usar para estudiar esta semana.
 
@@ -27,10 +27,12 @@ No las reabras sin motivo nuevo; si crees que alguna está mal, dilo antes de im
 | Frontend server-side con Jinja y JavaScript sin framework | El prototipo ya funciona así; añadir React multiplicaría el trabajo sin beneficio |
 | Docker + gunicorn | Despliegue reproducible; `docker-compose.yml` es solo para desarrollo local |
 | Despliegue en Render, plan gratuito | Coste cero; el arranque en frío de un minuto es aceptable para sesiones de estudio |
+| Repetición espaciada con FSRS (librería `fsrs`), no Leitner | Predice la probabilidad de acierto de cada pregunta, y esa predicción se puede medir y ajustar con el historial propio. Sustituye a lo que pedía la antigua `SPEC.md` 2.4 |
+| El optimizador de FSRS corre en GitHub Actions, nunca en la imagen | Necesita torch, que no cabe en los 512 MB de la instancia gratuita de Render. `fsrs[optimizer]` va en un `requirements-optimizer.txt` aparte |
 
 ## Ponderación del examen
 
-Las tandas se muestrean respetando el peso oficial de cada dominio. Está codificado en varios sitios: mantenlo en un único punto de verdad.
+Las tandas se muestrean respetando el peso oficial de cada dominio. Hoy vive en `app/sampling.py` y está repetido en el JavaScript y en el validador. Con el modelo de varios exámenes (hito 1 de la fase 2) pasa a la base de datos, que será el único punto de verdad: no vuelvas a escribir dominios ni pesos en el código.
 
 | Dominio | Nombre | Peso |
 |---|---|---|
@@ -53,7 +55,7 @@ El examen puntúa de 100 a 1000 y aprueba en 700, pero no publica el porcentaje 
 - Los mensajes de error explican qué ha pasado y cómo arreglarlo. Nada de «Ha ocurrido un error».
 - Antes de dar por buena una tarea, comprueba que la aplicación arranca con `docker compose up` y que el flujo completo (entrar, responder una tanda, ver el resultado, volver) funciona.
 - No añadas dependencias sin decir qué problema resuelven.
-- Las preguntas nuevas las genera Claude en el chat con la skill `preguntas-aib-c01` y entran por la utilidad de importación. **Nunca generes preguntas dentro de este repositorio ni edites las existentes por tu cuenta**: el banco es contenido curado, no datos de prueba.
+- Las preguntas nuevas las genera Claude en el chat con la skill `preguntas-aib-c01` y entran por la utilidad de importación. Para otros exámenes, con el kit exportable de la fase 2 pegado en el chat. **Nunca generes preguntas dentro de este repositorio ni edites las existentes por tu cuenta**: el banco es contenido curado, no datos de prueba.
 
 ## Ramas
 
