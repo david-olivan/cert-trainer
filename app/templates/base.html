@@ -19,6 +19,7 @@
       <div class="chrome-in">
         <a class="chrome-title" href="{{ url_for('practice.home') }}">Entrenador <span>AIB-C01</span></a>
         <nav class="chrome-acts">
+          <a class="chip" href="{{ url_for('exams_admin.index') }}">Exámenes</a>
           <a class="chip" href="{{ url_for('questions_admin.index') }}">Preguntas</a>
           <form method="post" action="{{ url_for('practice.reset_progress_view') }}"
                 onsubmit="return confirm('Se borrarán todas tus sesiones y respuestas. El banco de preguntas no se toca. Esta acción no se puede deshacer. ¿Continuar?')">

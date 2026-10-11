@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Exámenes — Entrenador AIB-C01{% endblock %}
+{% block content %}
+  <div class="head">
+    <h1>Exámenes</h1>
+    <p class="sub">El examen en curso es el que estudias en la portada.</p>
+  </div>
+
+  <div class="list">
+    {% for exam in exams %}
+      <a class="row" href="{{ url_for('exams_admin.edit', exam_id=exam.id) }}">
+        <span class="badge {{ '' if exam.id == current.id else 'neutral' }}">{{ exam.domains | length }}</span>
+        <span class="row-body">
+          <span class="row-title">{{ exam.code }}{% if exam.id == current.id %} · en curso{% endif %}{% if exam.archived %} · archivado{% endif %}</span>
+          <span class="row-sub">
+            {{ exam.name }} · {{ question_counts.get(exam.id, 0) }} preguntas · {{ session_counts.get(exam.id, 0) }} sesiones
+            {%- if exam.exam_date %} · examen el {{ exam.exam_date.strftime("%d/%m/%Y") }}{% endif %}
+          </span>
+        </span>
+        <span class="chev"></span>
+      </a>
+    {% endfor %}
+  </div>
+  <p class="note inset" style="margin-top:var(--s-2)">La pastilla indica cuántos dominios tiene cada examen.</p>
+
+  <div class="acts">
+    <a class="btn" href="{{ url_for('exams_admin.create') }}">Nuevo examen</a>
+  </div>
+{% endblock %}

@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}{{ exam.code if exam else "Nuevo examen" }} — Entrenador AIB-C01{% endblock %}
+
+{% macro domain_row(i, d) %}
+  <div class="card exam-row" data-kind="domain">
+    <input type="hidden" name="domain-{{ i }}-id" value="{{ d.id }}">
+    <div class="fields wide">
+      <div class="field">
+        <label for="domain-{{ i }}-number">Número</label>
+        <input id="domain-{{ i }}-number" name="domain-{{ i }}-number" value="{{ d.number }}" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label for="domain-{{ i }}-short_name">Nombre corto</label>
+        <input id="domain-{{ i }}-short_name" name="domain-{{ i }}-short_name" value="{{ d.short_name }}"
+               maxlength="40" placeholder="Sale en el medidor">
+      </div>
+      <div class="field">
+        <label for="domain-{{ i }}-name">Nombre</label>
+        <input id="domain-{{ i }}-name" name="domain-{{ i }}-name" value="{{ d.name }}" placeholder="Como en la guía oficial">
+      </div>
+      <div class="field">
+        <label for="domain-{{ i }}-weight">Peso (%)</label>
+        <input id="domain-{{ i }}-weight" name="domain-{{ i }}-weight" value="{{ d.weight }}" inputmode="numeric"
+               data-weight>
+      </div>
+    </div>
+    <label class="note" for="domain-{{ i }}-skills">Habilidades (opcional), una por línea: «código — descripción»</label>
+    <textarea id="domain-{{ i }}-skills" name="domain-{{ i }}-skills" class="code-input short"
+              placeholder="1.1.1 — Explicar qué es un modelo fundacional">{{ d.skills }}</textarea>
+    {% if d.id %}
+      <label class="check"><input type="checkbox" name="domain-{{ i }}-remove" value="1" {{ "checked" if d.remove }}> Quitar este dominio</label>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{% macro format_row(i, f) %}
+  <div class="card exam-row" data-kind="format">
+    <input type="hidden" name="format-{{ i }}-id" value="{{ f.id }}">
+    <div class="fields wide">
+      <div class="field">
+        <label for="format-{{ i }}-option_count">Opciones</label>
+        <input id="format-{{ i }}-option_count" name="format-{{ i }}-option_count" value="{{ f.option_count }}" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label for="format-{{ i }}-correct_count">Correctas</label>
+        <input id="format-{{ i }}-correct_count" name="format-{{ i }}-correct_count" value="{{ f.correct_count }}" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label for="format-{{ i }}-target_share_pct">Proporción (%)</label>
+        <input id="format-{{ i }}-target_share_pct" name="format-{{ i }}-target_share_pct" value="{{ f.target_share_pct }}"
+               inputmode="numeric" placeholder="Opcional">
+      </div>
+    </div>
+    {% if f.id %}
+      <label class="check"><input type="checkbox" name="format-{{ i }}-remove" value="1" {{ "checked" if f.remove }}> Quitar este formato</label>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{% block content %}
+  <div class="head">
+    <h1>{{ exam.code if exam else "Nuevo examen" }}</h1>
+    <p class="sub">{{ exam.name if exam else "Dominios, pesos y formatos de pregunta del examen." }}</p>
+  </div>
+
+  {% if form.errors %}
+    <div class="error" role="alert">
+      <b>No se ha guardado nada.</b> Corrige esto y vuelve a guardar:
+      <ul>{% for e in form.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+    </div>
+  {% endif %}
+
+  <form method="post" id="exam-form">
+    <h2 class="section-title">Datos</h2>
+    <div class="fields wide">
+      <div class="field"><label for="code">Código</label>
+        <input id="code" name="code" value="{{ form.values.code }}" maxlength="40" placeholder="AIB-C01" autocapitalize="characters"></div>
+      <div class="field"><label for="name">Nombre</label>
+        <input id="name" name="name" value="{{ form.values.name }}" placeholder="Nombre oficial"></div>
+      <div class="field"><label for="exam_date">Fecha del examen</label>
+        <input id="exam_date" name="exam_date" type="date" value="{{ form.values.exam_date }}"></div>
+      <div class="field"><label for="duration_minutes">Duración (min)</label>
+        <input id="duration_minutes" name="duration_minutes" value="{{ form.values.duration_minutes }}" inputmode="numeric" placeholder="Opcional"></div>
+      <div class="field"><label for="minutes_per_question">Min. por pregunta</label>
+        <input id="minutes_per_question" name="minutes_per_question" value="{{ form.values.minutes_per_question }}" inputmode="numeric"></div>
+      <div class="field"><label for="pass_threshold_pct">Umbral orient. (%)</label>
+        <input id="pass_threshold_pct" name="pass_threshold_pct" value="{{ form.values.pass_threshold_pct }}" inputmode="numeric"></div>
+      <div class="field"><label for="desired_retention_pct">Retención (%)</label>
+        <input id="desired_retention_pct" name="desired_retention_pct" value="{{ form.values.desired_retention_pct }}" inputmode="numeric"></div>
+      <div class="field"><label for="new_per_day">Nuevas al día</label>
+        <input id="new_per_day" name="new_per_day" value="{{ form.values.new_per_day }}" inputmode="numeric"></div>
+    </div>
+    <p class="note inset">
+      Con fecha, ningún repaso se programa después del examen. La retención deseada (70–97 %) es la
+      probabilidad de acierto a la que FSRS programa cada repaso: más alta, más repasos.
+    </p>
+
+    <h2 class="section-title">Dominios <span class="weight-sum" id="weight-sum"></span></h2>
+    <div id="domains" data-next="{{ form.domains | length }}">
+      {% for d in form.domains %}{{ domain_row(loop.index0, d) }}{% endfor %}
+    </div>
+    <div class="acts tight"><button type="button" class="btn tinted" data-add="domain">Añadir dominio</button></div>
+
+    <h2 class="section-title">Formatos de pregunta</h2>
+    <p class="note inset">
+      Cuántas opciones y cuántas correctas puede tener una pregunta. La importación rechaza las que no
+      encajen. La proporción objetivo es opcional; si la pones en todos, tiene que sumar 100.
+    </p>
+    <div id="formats" data-next="{{ form.formats | length }}" style="margin-top:var(--s-3)">
+      {% for f in form.formats %}{{ format_row(loop.index0, f) }}{% endfor %}
+    </div>
+    <div class="acts tight"><button type="button" class="btn tinted" data-add="format">Añadir formato</button></div>
+
+    <div class="acts">
+      <button type="submit" class="btn">Guardar</button>
+      <a class="btn plain" href="{{ url_for('exams_admin.index') }}">Cancelar</a>
+    </div>
+  </form>
+
+  {% if exam %}
+    <h2 class="section-title">Archivar o borrar</h2>
+    <div class="card">
+      <p class="note">
+        Un examen archivado deja de ofrecerse, pero conserva sus preguntas y su historial.
+        Solo se puede borrar un examen sin preguntas ni sesiones.
+      </p>
+      <div class="acts">
+        <form method="post" action="{{ url_for('exams_admin.toggle_archived', exam_id=exam.id) }}">
+          <button type="submit" class="btn tinted">{{ "Desarchivar" if exam.archived else "Archivar" }}</button>
+        </form>
+        {% if not delete_blocked %}
+          <form method="post" action="{{ url_for('exams_admin.delete', exam_id=exam.id) }}"
+                onsubmit="return confirm('Se borrará {{ exam.code }} con sus dominios y formatos. No se puede deshacer. ¿Continuar?')">
+            <button type="submit" class="btn plain danger">Borrar</button>
+          </form>
+        {% endif %}
+      </div>
+      {% if delete_blocked %}<p class="note" style="margin-top:var(--s-3)">{{ delete_blocked }}</p>{% endif %}
+    </div>
+  {% endif %}
+
+  <template id="tpl-domain">{{ domain_row("__i__", {"id": "", "number": "", "short_name": "", "name": "", "weight": "", "skills": "", "remove": ""}) }}</template>
+  <template id="tpl-format">{{ format_row("__i__", {"id": "", "option_count": "", "correct_count": "", "target_share_pct": "", "remove": ""}) }}</template>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  // Añadir filas: se clona la plantilla y se le pone el siguiente índice.
+  document.querySelectorAll("[data-add]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var kind = btn.dataset.add;
+      var box = document.getElementById(kind === "domain" ? "domains" : "formats");
+      var i = parseInt(box.dataset.next, 10);
+      box.dataset.next = i + 1;
+      var html = document.getElementById("tpl-" + kind).innerHTML.replace(/__i__/g, i);
+      box.insertAdjacentHTML("beforeend", html);
+      var first = box.lastElementChild.querySelector("input:not([type=hidden])");
+      if (first) first.focus();
+      paintSum();
+    });
+  });
+
+  // Suma de pesos a la vista mientras se escribe. El servidor vuelve a
+  // comprobarla al guardar: esto solo avisa antes.
+  var sumEl = document.getElementById("weight-sum");
+  function paintSum() {
+    var total = 0;
+    document.querySelectorAll("#domains .exam-row").forEach(function (row) {
+      var removed = row.querySelector("input[type=checkbox]");
+      if (removed && removed.checked) return;
+      var v = parseInt(row.querySelector("[data-weight]").value, 10);
+      if (!isNaN(v)) total += v;
+    });
+    sumEl.textContent = "· suman " + total + " %";
+    sumEl.classList.toggle("bad", total !== 100);
+  }
+  document.getElementById("domains").addEventListener("input", paintSum);
+  document.getElementById("domains").addEventListener("change", paintSum);
+  paintSum();
+})();
+</script>
+{% endblock %}
