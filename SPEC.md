@@ -56,7 +56,7 @@ Se usa sobre todo desde el móvil: comprueba el diseño a 380 px antes de darlo 
 
 ## Fase 2 — Varios exámenes, repetición espaciada y métricas
 
-Épica: [[epica]]. La fase 1 está completa y en producción.
+Épica: #12. La fase 1 está completa y en producción.
 
 La aplicación deja de estar atada a AIB-C01: cualquier examen tipo test se da de alta con sus dominios, pesos y formatos de pregunta, y se estudia con repetición espaciada FSRS. Cada respuesta deja las señales necesarias para medir el algoritmo y ajustarlo con datos propios.
 
@@ -70,32 +70,32 @@ AIB-C01 sigue siendo la prioridad, porque la fecha límite real es el 15 de febr
 
 ### Hito 0 — Señales y recuerdo activo
 
-- **Confianza, pista y orden de opciones en cada respuesta** ([[senales]]). «Comprobar · seguro» y «Comprobar · dudo» sustituyen al botón actual; se guarda también si se usó la pista y la permutación de opciones mostrada. Va primero porque cada día sin estas señales es historial que el optimizador no podrá usar.
-- **Modo «primero piensa»** ([[primero-piensa]]). Enunciado solo, tecla para mostrar las opciones. No aplica al simulacro.
+- **Confianza, pista y orden de opciones en cada respuesta** (#13). «Comprobar · seguro» y «Comprobar · dudo» sustituyen al botón actual; se guarda también si se usó la pista y la permutación de opciones mostrada. Va primero porque cada día sin estas señales es historial que el optimizador no podrá usar.
+- **Modo «primero piensa»** (#14). Enunciado solo, tecla para mostrar las opciones. No aplica al simulacro.
 
 ### Hito 1 — Modelo de varios exámenes
 
-- **Modelo** ([[7]]): `Exam`, `Domain`, `Skill` (opcional) y `QuestionFormat`. Un formato es un par «opciones / correctas»: AIB-C01 tiene 4/1 y 5/2. La migración crea AIB-C01 con los datos de hoy y reasigna el banco. Antes de mergearla, copia del banco a mano.
-- **Fuera los dominios fijos** ([[dominios]]). Pesos, nombres, 1..4, `s`/`m` y el 72 % dejan de estar repetidos en Python, plantillas y JavaScript: el único punto de verdad pasa a ser la base de datos.
+- **Modelo** (#7): `Exam`, `Domain`, `Skill` (opcional) y `QuestionFormat`. Un formato es un par «opciones / correctas»: AIB-C01 tiene 4/1 y 5/2. La migración crea AIB-C01 con los datos de hoy y reasigna el banco. Antes de mergearla, copia del banco a mano.
+- **Fuera los dominios fijos** (#15). Pesos, nombres, 1..4, `s`/`m` y el 72 % dejan de estar repetidos en Python, plantillas y JavaScript: el único punto de verdad pasa a ser la base de datos.
 
 ### Hito 2 — Repetición espaciada
 
-- **FSRS por pregunta** ([[fsrs-nucleo]]). Un estado FSRS por pregunta y parámetros por examen. Cada respuesta se traduce a una nota FSRS: fallo → Again; acierto con duda, con pista o lento → Hard; acierto seguro → Good; seguro y rápido → Easy. Los umbrales de «lento» y «rápido» son configurables: son los primeros mandos que ajustar. Ninguna revisión se programa después de la fecha de examen. `flask fsrs rebuild` reconstruye los estados desde el historial.
-- **«Repaso de hoy»** ([[repaso-hoy]]) sustituye a «Repaso de fallos»: primero las vencidas, de menor a mayor probabilidad de acierto, y después un cupo diario de nuevas con el peso de cada dominio.
-- **La cola sale de la cookie** ([[cola-tabla]]). Resuelve la deuda técnica de más abajo antes de que el banco crezca.
+- **FSRS por pregunta** (#16). Un estado FSRS por pregunta y parámetros por examen. Cada respuesta se traduce a una nota FSRS: fallo → Again; acierto con duda, con pista o lento → Hard; acierto seguro → Good; seguro y rápido → Easy. Los umbrales de «lento» y «rápido» son configurables: son los primeros mandos que ajustar. Ninguna revisión se programa después de la fecha de examen. `flask fsrs rebuild` reconstruye los estados desde el historial.
+- **«Repaso de hoy»** (#17) sustituye a «Repaso de fallos»: primero las vencidas, de menor a mayor probabilidad de acierto, y después un cupo diario de nuevas con el peso de cada dominio.
+- **La cola sale de la cookie** (#18). Resuelve la deuda técnica de más abajo antes de que el banco crezca.
 
 ### Hito 3 — Gestión de exámenes
 
-- **CRUD de exámenes** ([[crud]]): dominios con pesos que suman 100, formatos permitidos con su proporción objetivo, habilidades opcionales, fecha de examen, retención deseada. Archivar en vez de borrar cuando hay historial.
-- **Examen activo en la portada** ([[8]]).
+- **CRUD de exámenes** (#19): dominios con pesos que suman 100, formatos permitidos con su proporción objetivo, habilidades opcionales, fecha de examen, retención deseada. Archivar en vez de borrar cuando hay historial.
+- **Examen activo en la portada** (#8).
 
 ### Hito 4 — Generación dirigida
 
-- **Kit para Claude e importación por examen** ([[kit]]). Un Markdown exportable con instrucciones, ficha del examen, esquema JSON, huecos de cobertura e `id` ya usados, para pegarlo en el chat. Recoge la antigua 2.3 (cobertura por habilidad). La importación acepta `{"exam": "…", "questions": […]}` y valida contra los formatos del examen; el array pelado sigue valiendo.
+- **Kit para Claude e importación por examen** (#20). Un Markdown exportable con instrucciones, ficha del examen, esquema JSON, huecos de cobertura e `id` ya usados, para pegarlo en el chat. Recoge la antigua 2.3 (cobertura por habilidad). La importación acepta `{"exam": "…", "questions": […]}` y valida contra los formatos del examen; el array pelado sigue valiendo.
 
 ### Hito 5 — Métricas y ajuste
 
-- **Panel de métricas** ([[metricas]]):
+- **Panel de métricas** (#21):
   - Acierto en primera vista.
   - Medidor de preparación basado en FSRS.
   - Fallos marcados como «seguro».
@@ -103,10 +103,10 @@ AIB-C01 sigue siendo la prioridad, porque la fecha límite real es el 15 de febr
   - Cobertura.
   - Distractores más elegidos y sesgo de posición.
   - Proyección al día del examen, siempre presentada como estimación.
-- **Evaluación del algoritmo** ([[evaluacion]]):
+- **Evaluación del algoritmo** (#22):
   - Calibración, log loss y RMSE de la predicción de FSRS.
   - `flask fsrs replay` para comparar parámetros y umbrales sobre el historial real.
-- **Optimizador** ([[optimizador]]): el workflow semanal o manual descrito arriba.
+- **Optimizador** (#23): el workflow semanal o manual descrito arriba.
 
 ### Sueltas, cuando apetezca
 
@@ -142,7 +142,7 @@ Lo que importa es que el simulacro muestrea *todas* las preguntas activas, así 
 
 O sea: hay sitio de sobra y el problema no es para mañana. Se apunta porque el día que llegue no avisa — el navegador descarta la cookie en silencio y el síntoma es un simulacro que sale en blanco o que pierde la sesión a mitad, no un error que diga qué pasa.
 
-Planificado en el hito 2 ([[cola-tabla]]), antes de que el banco crezca con otros exámenes. La solución: mover el estado de la cola a una tabla, referenciada desde la sesión por el `id` de `StudySession`, que ya existe. Para reproducir la medición: serializar el diccionario que arma `/api/session/start` con `SecureCookieSessionInterface` y mirar cuánto ocupa.
+Planificado en el hito 2 (#18), antes de que el banco crezca con otros exámenes. La solución: mover el estado de la cola a una tabla, referenciada desde la sesión por el `id` de `StudySession`, que ya existe. Para reproducir la medición: serializar el diccionario que arma `/api/session/start` con `SecureCookieSessionInterface` y mirar cuánto ocupa.
 
 ---
 
