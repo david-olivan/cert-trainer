@@ -133,16 +133,6 @@ Hasta #18, `app/api.py` guardaba en la cookie de sesión de Flask la cola de la 
 
 Desde #18 la cola vive en `study_sessions` (`queue`, `option_orders`, `position`, `recall_first`) y la cookie solo lleva el id de la sesión. Hay una prueba que arma un simulacro de 500 preguntas y comprueba que la cookie sigue por debajo de 1 kB (`tests/test_cola.py`).
 
----|---|
-| 44 (hoy) | 623 B |
-| 200 | 1,9 kB |
-| 400 | 3,6 kB |
-| 444 | ~4 kB, el límite |
-
-O sea: hay sitio de sobra y el problema no es para mañana. Se apunta porque el día que llegue no avisa — el navegador descarta la cookie en silencio y el síntoma es un simulacro que sale en blanco o que pierde la sesión a mitad, no un error que diga qué pasa.
-
-Planificado en el hito 2 (#18), antes de que el banco crezca con otros exámenes. La solución: mover el estado de la cola a una tabla, referenciada desde la sesión por el `id` de `StudySession`, que ya existe. Para reproducir la medición: serializar el diccionario que arma `/api/session/start` con `SecureCookieSessionInterface` y mirar cuánto ocupa.
-
 ---
 
 ## Fuera de alcance
