@@ -1,6 +1,6 @@
 """Vistas de página: inicio, sesión de práctica, historial."""
 from flask import Blueprint, flash, redirect, render_template, url_for
-from flask_login import login_required
+from flask_login import current_user, login_required
 from sqlalchemy import distinct, func
 
 from app.extensions import db
@@ -57,7 +57,17 @@ def home():
         failed_count=failed_count,
         history=history,
         pass_threshold=PASS_THRESHOLD_PCT,
+        recall_first=current_user.recall_first,
     )
+
+
+@bp.route("/preferencias/primero-piensa", methods=["POST"])
+@login_required
+def toggle_recall_first():
+    """Enciende o apaga el modo «primero piensa». Se aplica desde la siguiente tanda."""
+    current_user.recall_first = not current_user.recall_first
+    db.session.commit()
+    return redirect(url_for("practice.home"))
 
 
 @bp.route("/tanda")

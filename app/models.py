@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from flask_login import UserMixin
+from sqlalchemy import false
 
 from app.extensions import db
 
@@ -17,6 +18,9 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    # Modo «primero piensa» (issue #14): enunciado antes que opciones. Vive
+    # en el servidor para que valga igual en el móvil y en el portátil.
+    recall_first = db.Column(db.Boolean, nullable=False, default=False, server_default=false())
 
 
 class Question(db.Model):
@@ -73,6 +77,12 @@ class Attempt(db.Model):
     # opción que apareció en la posición i. Permite medir el sesgo de
     # posición; `selected` sigue guardándose en índices originales.
     option_order = db.Column(db.JSON, nullable=True)
+    # Modo «primero piensa» (issue #14). recall_first lo decide el servidor
+    # al empezar la tanda; seconds_to_reveal es lo que se tardó en pedir las
+    # opciones, contado desde que apareció el enunciado. Nulos en los
+    # intentos anteriores.
+    recall_first = db.Column(db.Boolean, nullable=True)
+    seconds_to_reveal = db.Column(db.Integer, nullable=True)
 
     question = db.relationship("Question", back_populates="attempts")
     session = db.relationship("StudySession", back_populates="attempts")

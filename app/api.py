@@ -9,7 +9,7 @@ red o el propio código. Cada respuesta se guarda en Attempt al vuelo
 import random
 
 from flask import Blueprint, jsonify, request, session
-from flask_login import login_required
+from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.models import Attempt, Question, StudySession
@@ -77,8 +77,14 @@ def start():
         random.shuffle(order)
         option_orders[q.ext_id] = order
 
+    # «Primero piensa» (issue #14) lo decide el servidor al empezar, no el
+    # cliente: es la preferencia guardada, salvo en simulacro, porque el
+    # examen real no funciona así.
+    recall_first = bool(current_user.recall_first) and mode != "simulacro"
+
     session[SESSION_KEY] = {
         "study_session_id": study_session.id,
+        "recall_first": recall_first,
         "mode": mode,
         "domain": domain,
         "queue": [q.ext_id for q in questions],
@@ -93,6 +99,7 @@ def start():
         total=len(questions),
         index=0,
         minutes_per_question=2,
+        recall_first=recall_first,
         question=_public_question(first_question, option_orders[first_question.ext_id]),
     )
 
@@ -120,6 +127,17 @@ def answer():
     if hint_used is not None and not isinstance(hint_used, bool):
         return jsonify(error="'hint_used' debe ser true o false."), 400
 
+    # Una tanda empezada antes de existir el modo no trae la clave: se
+    # trata como apagado.
+    recall_first = state.get("recall_first", False)
+    seconds_to_reveal = payload.get("seconds_to_reveal")
+    if seconds_to_reveal is not None and (
+        isinstance(seconds_to_reveal, bool) or not isinstance(seconds_to_reveal, int) or seconds_to_reveal < 0
+    ):
+        return jsonify(error="'seconds_to_reveal' debe ser un número entero de segundos, 0 o más."), 400
+    if not recall_first:
+        seconds_to_reveal = None
+
     ext_id = state["queue"][state["index"]]
     question = Question.query.filter_by(ext_id=ext_id).first()
     if question is None:
@@ -141,6 +159,8 @@ def answer():
         confidence=confidence,
         hint_used=hint_used,
         option_order=list(order),
+        recall_first=recall_first,
+        seconds_to_reveal=seconds_to_reveal,
     )
     db.session.add(attempt)
     db.session.commit()

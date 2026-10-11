@@ -199,6 +199,8 @@ def db_seed_demo(reset):
     # desplazarían todas las tiradas siguientes y cambiaría el perfil de
     # aciertos por dominio que la demostración fija a propósito.
     signals_rng = random.Random(20261011)
+    # Y otro para «primero piensa» (#14), por el mismo motivo.
+    recall_rng = random.Random(20261012)
     now = utcnow()
     total_attempts = 0
 
@@ -223,6 +225,10 @@ def db_seed_demo(reset):
         db.session.add(study_session)
         db.session.flush()  # necesitamos el id para los intentos
 
+        # La mitad de las tandas que no son simulacro, en «primero piensa»:
+        # así las métricas tienen con qué comparar.
+        recall_first = mode != "simulacro" and recall_rng.random() < 0.5
+
         answered_at = started_at
         correct_count = 0
         for question in questions:
@@ -238,6 +244,8 @@ def db_seed_demo(reset):
                     seconds_spent=seconds,
                     answered_at=answered_at,
                     **_demo_signals(question, is_correct, seconds, signals_rng),
+                    recall_first=recall_first,
+                    seconds_to_reveal=recall_rng.randint(5, min(40, seconds - 5)) if recall_first else None,
                 )
             )
             correct_count += 1 if is_correct else 0
