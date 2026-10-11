@@ -797,7 +797,9 @@ code {
   .chrome-in { padding: 0 var(--s-3); }
   .card { padding: var(--s-4); }
   .meter { height: 148px; gap: var(--s-2); }
-  .acts .btn { flex: 1; }
+  /* Sin salto de línea: «Comprobar · seguro» y «Comprobar · dudo» van
+     lado a lado y, partidos en dos líneas, quedaban descompensados. */
+  .acts .btn { flex: 1; padding: 0 var(--s-3); white-space: nowrap; }
   .field label { width: 78px; font-size: var(--fs-foot); }
   .drow { grid-template-columns: 1fr 64px 40px; }
 }
