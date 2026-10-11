@@ -1,33 +1,15 @@
-"""Muestreo de preguntas y ponderación oficial del examen.
+"""Muestreo de preguntas con la ponderación oficial de cada examen.
 
-Único punto de verdad para los pesos de dominio (CLAUDE.md lo exige
-explícitamente: "está codificado en varios sitios: mantenlo en un único
-punto de verdad"). Cualquier vista, API o comando que necesite los pesos
-importa DOMAIN_WEIGHTS de aquí.
+Los dominios y sus pesos viven en la base de datos (tablas `exams` y
+`domains`), que es el único punto de verdad: aquí no se escribe ninguno.
 """
 import random
 
-from app.exams import current_exam
+from sqlalchemy import func
+
 from app.extensions import db
 from app.models import Attempt, Domain, Question
 
-DOMAIN_WEIGHTS = {1: 24, 2: 28, 3: 24, 4: 24}
-
-DOMAIN_NAMES = {
-    1: "Conceptos básicos y alfabetización en IA",
-    2: "Estrategia de IA y creación de valor empresarial",
-    3: "Gobernanza de la IA y liderazgo responsable",
-    4: "Preparación empresarial, liderazgo y transformación",
-}
-
-DOMAIN_SHORT = {
-    1: "Fundamentos",
-    2: "Estrategia",
-    3: "Gobernanza",
-    4: "Transformación",
-}
-
-PASS_THRESHOLD_PCT = 72  # umbral orientativo, nunca predicción de resultado
 FALLOS_MAX = 20
 
 
@@ -39,11 +21,11 @@ def _active_questions_by_domain(exam):
     return by_domain
 
 
-def weighted_sample(n, pool_by_domain=None):
-    """Muestrea `n` preguntas respetando el peso oficial de cada dominio."""
-    by_domain = pool_by_domain or _active_questions_by_domain(current_exam())
+def weighted_sample(exam, n, pool_by_domain=None):
+    """Muestrea `n` preguntas respetando el peso oficial de cada dominio del examen."""
+    by_domain = pool_by_domain or _active_questions_by_domain(exam)
     out = []
-    for domain, weight in DOMAIN_WEIGHTS.items():
+    for domain, weight in ((d.number, d.weight) for d in exam.domains):
         pool = by_domain.get(domain, [])[:]
         random.shuffle(pool)
         k = min(len(pool), round(n * weight / 100))
@@ -59,17 +41,19 @@ def weighted_sample(n, pool_by_domain=None):
     return out[:n]
 
 
-def build_queue(mode, domain=None):
-    """Construye la cola de preguntas para un modo de práctica.
+def build_queue(exam, mode, domain=None):
+    """Construye la cola de preguntas de `exam` para un modo de práctica.
 
     Puerto directo de build()/weighted() del prototipo
     (reference/entrenador-artefacto.html).
     """
-    exam = current_exam()
-
     if mode == "dominio":
-        if domain not in DOMAIN_WEIGHTS:
-            raise ValueError("Dominio fuera de rango (debe ser 1-4).")
+        numbers = [d.number for d in exam.domains]
+        if domain not in numbers:
+            raise ValueError(
+                f"{exam.code} no tiene el dominio {domain!r}: elige uno de "
+                f"{', '.join(str(n) for n in numbers)}."
+            )
         pool = (
             Question.query.join(Domain, Question.domain_id == Domain.id)
             .filter(Question.active.is_(True), Question.exam_id == exam.id, Domain.number == domain)
@@ -79,8 +63,6 @@ def build_queue(mode, domain=None):
         return pool
 
     if mode == "fallos":
-        from sqlalchemy import func
-
         counts = (
             Attempt.query.join(Question)
             .filter(Attempt.is_correct.is_(False), Question.active.is_(True), Question.exam_id == exam.id)
@@ -95,11 +77,11 @@ def build_queue(mode, domain=None):
         return [questions_by_id[qid] for qid in ids_in_order if qid in questions_by_id]
 
     if mode == "rapida":
-        return weighted_sample(10)
+        return weighted_sample(exam, 10)
 
     if mode == "simulacro":
         total_active = Question.query.filter_by(active=True, exam_id=exam.id).count()
-        return weighted_sample(total_active)
+        return weighted_sample(exam, total_active)
 
     raise ValueError(f"Modo de práctica desconocido: {mode!r}")
 

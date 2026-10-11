@@ -7,8 +7,10 @@
 (function () {
   "use strict";
 
-  var DOMAIN_SHORT = { 1: "Fundamentos", 2: "Estrategia", 3: "Gobernanza", 4: "Transformación" };
-  var PASS = window.PASS_THRESHOLD || 72;
+  // Los dos vienen del examen, a través de session.html: aquí no se
+  // escribe ningún dominio ni umbral.
+  var DOMAIN_SHORT = window.DOMAIN_SHORT;
+  var PASS = window.PASS_THRESHOLD;
 
   var app = document.getElementById("app");
   var params = new URLSearchParams(window.location.search);
@@ -170,7 +172,7 @@
       keyhint: node.querySelector(".keyhint"),
     };
 
-    view.dom.textContent = "Dominio " + q.domain + " · " + (q.domain_short || DOMAIN_SHORT[q.domain]);
+    view.dom.textContent = "Dominio " + q.domain + " · " + q.domain_short;
     view.count.textContent = (state.index + 1) + " de " + state.total;
     if (state.timed) {
       view.clock.hidden = false;

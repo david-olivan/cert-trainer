@@ -7,10 +7,10 @@
 
   <div class="card">
     <div class="meter">
-      {% for d in [1, 2, 3, 4] %}
-        {% set pct = readiness[d] %}
+      {% for domain in domains %}
+        {% set pct = readiness[domain.number] %}
         {% set cls = "" if pct is none else ("low" if pct < 60 else ("mid" if pct < pass_threshold else "")) %}
-        <div class="col">
+        <div class="col" style="--i: {{ loop.index0 }}">
           <div class="pct tabular">{{ "—" if pct is none else pct ~ " %" }}</div>
           <div class="track">
             {% if pct is not none %}
@@ -19,8 +19,8 @@
             <div class="thr" style="bottom:{{ pass_threshold }}%"></div>
           </div>
           <div class="cap">
-            <b>{{ domain_short[d] }}</b>
-            {{ domain_weights[d] }} %
+            <b>{{ domain.short_name }}</b>
+            {{ domain.weight }} %
           </div>
         </div>
       {% endfor %}
@@ -38,7 +38,7 @@
       <span class="badge neutral tabular">{{ total_questions }}</span>
       <span class="row-body">
         <span class="row-title">Simulacro cronometrado</span>
-        <span class="row-sub">Todas las preguntas, 2 min cada una, sin explicaciones hasta el final</span>
+        <span class="row-sub">Todas las preguntas, {{ exam.minutes_per_question }} min cada una, sin explicaciones hasta el final</span>
       </span>
       <span class="chev"></span>
     </button>
@@ -54,7 +54,7 @@
       <span class="badge neutral">↺</span>
       <span class="row-body">
         <span class="row-title">Repaso de fallos</span>
-        <span class="row-sub">{{ "Las " ~ ([failed_count, 20] | min) ~ " preguntas que más veces has fallado" if failed_count else "Todavía no has fallado ninguna pregunta" }}</span>
+        <span class="row-sub">{{ "Las " ~ ([failed_count, fallos_max] | min) ~ " preguntas que más veces has fallado" if failed_count else "Todavía no has fallado ninguna pregunta" }}</span>
       </span>
       <span class="chev"></span>
     </button>
@@ -73,15 +73,15 @@
 
   <h2 class="section-title">Por dominio</h2>
   <div class="list">
-    {% for d in [1, 2, 3, 4] %}
-      <button class="row" data-mode="dominio" data-domain="{{ d }}"
-              {{ "disabled" if question_counts[d] == 0 else "" }}>
-        <span class="badge">{{ d }}</span>
+    {% for domain in domains %}
+      <button class="row" data-mode="dominio" data-domain="{{ domain.number }}"
+              {{ "disabled" if question_counts[domain.number] == 0 else "" }}>
+        <span class="badge">{{ domain.number }}</span>
         <span class="row-body">
-          <span class="row-title">{{ domain_short[d] }}</span>
-          <span class="row-sub">{{ domain_names[d] }}</span>
+          <span class="row-title">{{ domain.short_name }}</span>
+          <span class="row-sub">{{ domain.name }}</span>
         </span>
-        <span class="row-value tabular">{{ question_counts[d] }}</span>
+        <span class="row-value tabular">{{ question_counts[domain.number] }}</span>
         <span class="chev"></span>
       </button>
     {% endfor %}

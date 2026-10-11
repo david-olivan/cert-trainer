@@ -21,10 +21,10 @@ Es el formato que produce la skill `preguntas-aib-c01` y el que usa `data/questi
 | `id` | `ext_id` | Único dentro de su examen. Prefijo `d<dominio>-` y número |
 | `dom` | `domain_id` | Número de un dominio del examen (en AIB-C01, 1 a 4); se resuelve a su fila de `domains` |
 | `hab` | `skill` | Código de habilidad de la guía oficial |
-| `t` | `type` | `s` respuesta única, `m` respuesta múltiple |
+| `t` | `type` | Opcional: `s` respuesta única, `m` múltiple. Si falta se deduce de `ok`; si viene, tiene que cuadrar con él |
 | `q` | `stem` | Escenario y pregunta |
-| `o` | `options` | 4 opciones en las de tipo `s`, 5 en las de tipo `m` |
-| `ok` | `correct` | Índices base 0. Dos elementos en las de tipo `m` |
+| `o` | `options` | Tantas como diga un formato admitido por el examen (en AIB-C01: 4 en las de una correcta, 5 en las de dos) |
+| `ok` | `correct` | Índices base 0. El par «opciones / correctas» tiene que ser un formato del examen (tabla `question_formats`) |
 | `w` | `explanation` | Se muestra tras responder |
 | `h` | `hint` | Opcional, bajo demanda antes de responder |
 
