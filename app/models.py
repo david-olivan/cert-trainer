@@ -140,6 +140,13 @@ class StudySession(db.Model):
     finished_at = db.Column(db.DateTime(timezone=True), nullable=True)
     question_count = db.Column(db.Integer, nullable=False, default=0)
     score_pct = db.Column(db.Integer, nullable=True)
+    # La cola de la tanda (issue #18). Vivía en la cookie de sesión, que los
+    # navegadores cortan en 4 kB sin avisar; aquí no tiene límite y la
+    # cookie solo lleva el id. Nulas en las sesiones anteriores.
+    queue = db.Column(db.JSON, nullable=True)  # ids de Question, en el orden en que se sirven
+    option_orders = db.Column(db.JSON, nullable=True)  # {str(question_id): permutación mostrada}
+    position = db.Column(db.Integer, nullable=True)  # cuántas se han respondido ya
+    recall_first = db.Column(db.Boolean, nullable=True)  # «primero piensa» (#14), decidido al empezar
 
     attempts = db.relationship("Attempt", back_populates="session", order_by="Attempt.answered_at")
 

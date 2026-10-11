@@ -127,14 +127,13 @@ Cada vez que corren las migraciones sale un `DeprecationWarning`: `migrations/en
 
 Queda apuntado para que nadie vuelva a investigarlo al verlo en los registros de CI ni «lo arregle» tocando código generado.
 
-### La cola de la tanda viaja en la cookie de sesión
+### Resuelta: la cola de la tanda viajaba en la cookie de sesión
 
-`app/api.py` guarda en la sesión de Flask la lista de preguntas, el reordenamiento de opciones de cada una y los resultados. Está bien decidido —así el JavaScript no puede leer la respuesta correcta inspeccionando la red—, pero la sesión de Flask es una cookie firmada, y los navegadores cortan las cookies en 4 KB.
+Hasta #18, `app/api.py` guardaba en la cookie de sesión de Flask la cola de la tanda, el reordenamiento de opciones y los resultados. Los navegadores descartan en silencio las cookies de más de 4 kB, y el simulacro mete todas las preguntas activas: hacia las 444 preguntas el simulacro habría salido en blanco sin ningún error.
 
-Lo que importa es que el simulacro muestrea *todas* las preguntas activas, así que la cookie crece con el banco sin que nadie lo decida. Medido con el serializador real de Flask y con `ext_id` del formato que se usa (`d1-01`), que Flask comprime con zlib antes de firmar:
+Desde #18 la cola vive en `study_sessions` (`queue`, `option_orders`, `position`, `recall_first`) y la cookie solo lleva el id de la sesión. Hay una prueba que arma un simulacro de 500 preguntas y comprueba que la cookie sigue por debajo de 1 kB (`tests/test_cola.py`).
 
-| Preguntas en el banco | Tamaño de la cookie |
-|---|---|
+---|---|
 | 44 (hoy) | 623 B |
 | 200 | 1,9 kB |
 | 400 | 3,6 kB |

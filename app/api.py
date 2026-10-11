@@ -1,10 +1,11 @@
 """API JSON de la tanda en curso.
 
 El estado de la cola (qué preguntas, en qué orden, con qué reordenamiento
-de opciones) vive en la sesión de Flask del lado servidor, nunca en el
-cliente: así el JS no puede leer la respuesta correcta inspeccionando la
-red o el propio código. Cada respuesta se guarda en Attempt al vuelo
-(SPEC.md 1.3), no al terminar la tanda.
+de opciones y por dónde va) vive en StudySession, en la base de datos, y
+la cookie de sesión solo lleva su id (#18). Nunca viaja al cliente: así el
+JS no puede leer la respuesta correcta inspeccionando la red o el propio
+código. Cada respuesta se guarda en Attempt al vuelo (SPEC.md 1.3), no al
+terminar la tanda.
 """
 import random
 from datetime import datetime, timezone
@@ -21,10 +22,10 @@ from app.srs import review
 bp = Blueprint("api", __name__, url_prefix="/api/session")
 
 SESSION_KEY = "practice_queue"
-# Versión del formato del estado de la tanda. La cola guarda ids de
-# Question desde la 2; una tanda empezada antes (con ext_id) no se puede
-# continuar y se descarta.
-QUEUE_VERSION = 2
+# Versión de lo que guarda la cookie. Desde la 3 es solo el id de la
+# StudySession; una tanda empezada con una versión anterior (la cola entera
+# en la cookie) no se puede continuar y se descarta.
+QUEUE_VERSION = 3
 
 CONFIDENCE_VALUES = ("sure", "unsure")
 
@@ -44,14 +45,19 @@ def _public_question(question, option_order):
     }
 
 
-def _current_state():
+def _current_session():
+    """La StudySession en curso de este navegador, o None."""
     state = session.get(SESSION_KEY)
     if not state:
         return None
     if state.get("version") != QUEUE_VERSION:
         session.pop(SESSION_KEY, None)
         return None
-    return state
+    study_session = db.session.get(StudySession, state["study_session_id"])
+    if study_session is None or study_session.finished_at is not None or study_session.queue is None:
+        session.pop(SESSION_KEY, None)
+        return None
+    return study_session
 
 
 @bp.route("/start", methods=["POST"])
@@ -77,40 +83,33 @@ def start():
             return jsonify(error="No tienes nada pendiente hoy. Vuelve al inicio y haz una tanda rápida."), 409
         return jsonify(error="No hay preguntas disponibles para este modo todavía."), 409
 
-    study_session = StudySession(
-        exam_id=exam.id,
-        mode=mode,
-        domain=domain if mode == "dominio" else None,
-        question_count=len(questions),
-    )
-    db.session.add(study_session)
-    db.session.commit()
-
     # Reordenamiento de opciones por pregunta (SPEC.md 1.3: aleatorizar en
-    # cada presentación). Se guarda el orden, no las respuestas, en la
-    # sesión de servidor.
+    # cada presentación). Se guarda el orden, no las respuestas.
     option_orders = {}
     for q in questions:
         order = list(range(len(q.options)))
         random.shuffle(order)
-        option_orders[str(q.id)] = order  # claves de texto: la sesión se serializa como JSON
+        option_orders[str(q.id)] = order  # claves de texto: la columna es JSON
 
     # «Primero piensa» (issue #14) lo decide el servidor al empezar, no el
     # cliente: es la preferencia guardada, salvo en simulacro, porque el
     # examen real no funciona así.
     recall_first = bool(current_user.recall_first) and mode != "simulacro"
 
-    session[SESSION_KEY] = {
-        "version": QUEUE_VERSION,
-        "study_session_id": study_session.id,
-        "recall_first": recall_first,
-        "mode": mode,
-        "domain": domain,
-        "queue": [q.id for q in questions],
-        "option_orders": option_orders,
-        "index": 0,
-        "results": [],  # True/False por pregunta respondida
-    }
+    study_session = StudySession(
+        exam_id=exam.id,
+        mode=mode,
+        domain=domain if mode == "dominio" else None,
+        question_count=len(questions),
+        queue=[q.id for q in questions],
+        option_orders=option_orders,
+        position=0,
+        recall_first=recall_first,
+    )
+    db.session.add(study_session)
+    db.session.commit()
+
+    session[SESSION_KEY] = {"version": QUEUE_VERSION, "study_session_id": study_session.id}
 
     first_question = questions[0]
     return jsonify(
@@ -126,8 +125,8 @@ def start():
 @bp.route("/answer", methods=["POST"])
 @login_required
 def answer():
-    state = _current_state()
-    if not state or state["index"] >= len(state["queue"]):
+    study_session = _current_session()
+    if study_session is None or study_session.position >= len(study_session.queue):
         return jsonify(error="No hay ninguna tanda en curso."), 409
 
     payload = request.get_json(silent=True) or {}
@@ -146,9 +145,7 @@ def answer():
     if hint_used is not None and not isinstance(hint_used, bool):
         return jsonify(error="'hint_used' debe ser true o false."), 400
 
-    # Una tanda empezada antes de existir el modo no trae la clave: se
-    # trata como apagado.
-    recall_first = state.get("recall_first", False)
+    recall_first = bool(study_session.recall_first)
     seconds_to_reveal = payload.get("seconds_to_reveal")
     if seconds_to_reveal is not None and (
         isinstance(seconds_to_reveal, bool) or not isinstance(seconds_to_reveal, int) or seconds_to_reveal < 0
@@ -157,12 +154,12 @@ def answer():
     if not recall_first:
         seconds_to_reveal = None
 
-    question_id = state["queue"][state["index"]]
+    question_id = study_session.queue[study_session.position]
     question = db.session.get(Question, question_id)
     if question is None:
         return jsonify(error="La pregunta ya no existe en el banco."), 409
 
-    order = state["option_orders"][str(question_id)]
+    order = study_session.option_orders[str(question_id)]
     # `selected` llega en índices del orden barajado; se traduce al índice
     # original para comparar contra Question.correct.
     selected_original = sorted(order[i] for i in selected if 0 <= i < len(order))
@@ -173,7 +170,7 @@ def answer():
     attempt = Attempt(
         answered_at=now,
         question_id=question.id,
-        session_id=state["study_session_id"],
+        session_id=study_session.id,
         selected=selected_original,
         is_correct=is_correct,
         seconds_spent=seconds_spent if isinstance(seconds_spent, int) else None,
@@ -188,11 +185,10 @@ def answer():
     # para que nunca quede uno sin el otro.
     review(attempt, question, question.exam, now=now)
     db.session.add(attempt)
+    # Avanzar la cola entra en la misma transacción que la respuesta: si se
+    # corta a mitad, ni se pierde la respuesta ni se salta la pregunta.
+    study_session.position += 1
     db.session.commit()
-
-    state["results"].append(is_correct)
-    state["index"] += 1
-    session[SESSION_KEY] = state
 
     correct_in_shown_order = sorted(order.index(i) for i in question.correct)
 
@@ -201,57 +197,52 @@ def answer():
         correct_options=correct_in_shown_order,
         explanation=question.explanation,
         skill=question.skill,
-        index=state["index"],
-        total=len(state["queue"]),
+        index=study_session.position,
+        total=len(study_session.queue),
     )
 
 
 @bp.route("/next", methods=["GET"])
 @login_required
 def next_question():
-    state = _current_state()
-    if not state:
+    study_session = _current_session()
+    if study_session is None:
         return jsonify(error="No hay ninguna tanda en curso."), 409
-    if state["index"] >= len(state["queue"]):
+    if study_session.position >= len(study_session.queue):
         return jsonify(done=True)
 
-    question_id = state["queue"][state["index"]]
+    question_id = study_session.queue[study_session.position]
     question = db.session.get(Question, question_id)
     if question is None:
         return jsonify(error="La pregunta ya no existe en el banco."), 409
 
     return jsonify(
         done=False,
-        index=state["index"],
-        total=len(state["queue"]),
-        question=_public_question(question, state["option_orders"][str(question_id)]),
+        index=study_session.position,
+        total=len(study_session.queue),
+        question=_public_question(question, study_session.option_orders[str(question_id)]),
     )
 
 
 @bp.route("/finish", methods=["POST"])
 @login_required
 def finish():
-    state = _current_state()
-    if not state:
+    study_session = _current_session()
+    if study_session is None:
         return jsonify(error="No hay ninguna tanda en curso."), 409
 
-    study_session = StudySession.query.get(state["study_session_id"])
-    if study_session is None:
-        return jsonify(error="La sesión de estudio ya no existe."), 409
-
-    results = state["results"]
-    answered = len(results)
-    correct = sum(1 for r in results if r)
+    # El resultado sale de las respuestas guardadas, que son la verdad: la
+    # cola solo dice qué faltaba por servir.
+    attempts = Attempt.query.filter_by(session_id=study_session.id).all()
+    answered = len(attempts)
+    correct = sum(1 for a in attempts if a.is_correct)
     pct = round(correct / answered * 100) if answered else 0
 
     per_domain = {}
-    for question_id, result in zip(state["queue"][:answered], results):
-        question = db.session.get(Question, question_id)
-        if question is None:
-            continue
-        bucket = per_domain.setdefault(question.domain.number, {"total": 0, "correct": 0})
+    for attempt in attempts:
+        bucket = per_domain.setdefault(attempt.question.domain.number, {"total": 0, "correct": 0})
         bucket["total"] += 1
-        bucket["correct"] += 1 if result else 0
+        bucket["correct"] += 1 if attempt.is_correct else 0
 
     per_domain_pct = {
         str(domain): round(v["correct"] / v["total"] * 100) for domain, v in per_domain.items() if v["total"]
