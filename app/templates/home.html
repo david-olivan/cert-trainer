@@ -2,8 +2,47 @@
 {% block content %}
   <div class="head">
     <h1>Preparación</h1>
-    <p class="sub">{{ total_questions }} preguntas en el banco · umbral orientativo {{ pass_threshold }} %</p>
+    <p class="sub">{{ exam.code }} · {{ total_questions }} preguntas en el banco · umbral orientativo {{ pass_threshold }} %</p>
   </div>
+
+  {# Selector de examen (#8): solo hace falta con más de uno sin archivar. #}
+  {% if studying_other %}
+    <div class="flash">
+      <span>Estás estudiando {{ exam.code }} de forma puntual{% if active %}; tu examen activo es {{ active.code }}{% endif %}.</span>
+      <form method="post" action="{{ url_for('practice.back_to_active') }}" style="margin-left:auto">
+        <button type="submit" class="chip">Volver{% if active %} a {{ active.code }}{% endif %}</button>
+      </form>
+    </div>
+  {% endif %}
+  {% if exams | length > 1 %}
+    <details class="exam-picker">
+      <summary>Cambiar de examen</summary>
+      <div class="list">
+        {% for e in exams %}
+          <div class="row">
+            <span class="row-body">
+              <span class="row-title">{{ e.code }}{% if active and e.id == active.id %} · activo{% endif %}{% if e.id == exam.id %} · en curso{% endif %}</span>
+              <span class="row-sub">{{ e.name }}</span>
+            </span>
+            {% if e.id != exam.id %}
+              <form method="post" action="{{ url_for('practice.study_exam', exam_id=e.id) }}">
+                <button type="submit" class="chip">Estudiar</button>
+              </form>
+            {% endif %}
+            {% if not active or e.id != active.id %}
+              <form method="post" action="{{ url_for('practice.activate_exam', exam_id=e.id) }}">
+                <button type="submit" class="chip">Fijar como activo</button>
+              </form>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <p class="note inset" style="margin-top:var(--s-2)">
+        «Estudiar» cambia de examen solo en este navegador. «Fijar como activo» lo deja como el que se
+        abre al entrar, también en el móvil.
+      </p>
+    </details>
+  {% endif %}
 
   <div class="card">
     <div class="meter">

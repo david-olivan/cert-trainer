@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from app.extensions import db
-from app.models import Domain, Exam, FsrsParameters, Question, QuestionFormat, Skill, StudySession
+from app.models import Domain, Exam, FsrsParameters, Question, QuestionFormat, Skill, StudySession, User
 
 ROW_KEY = re.compile(r"^(domain|format)-(\d+)-(\w+)$")
 # «código — descripción», admitiendo también guion corto, guion medio o dos puntos.
@@ -374,6 +374,7 @@ def can_delete(exam):
 
 
 def delete(exam):
+    User.query.filter_by(active_exam_id=exam.id).update({"active_exam_id": None})
     domain_ids = [d.id for d in exam.domains]
     if domain_ids:
         Skill.query.filter(Skill.domain_id.in_(domain_ids)).delete(synchronize_session=False)

@@ -7,9 +7,9 @@ from flask_login import login_required
 from sqlalchemy import func
 
 from app import exam_form
-from app.exams import current_exam
+from app.exams import active_exam, current_exam
 from app.extensions import db
-from app.models import Exam, Question, StudySession
+from app.models import Exam, Question, StudySession, User
 
 bp = Blueprint("exams_admin", __name__, url_prefix="/examenes")
 
@@ -35,6 +35,7 @@ def index():
         "exams.html",
         exams=exams,
         current=current_exam(),
+        active=active_exam(),
         question_counts=question_counts,
         session_counts=session_counts,
     )
@@ -80,8 +81,12 @@ def toggle_archived(exam_id):
         )
         return redirect(url_for("exams_admin.edit", exam_id=exam.id))
     exam.archived = not exam.archived
+    if exam.archived:
+        # Un examen archivado deja de ser el activo: si no, al desarchivarlo
+        # meses después volvería a abrirse al entrar sin que nadie lo pidiera.
+        User.query.filter_by(active_exam_id=exam.id).update({"active_exam_id": None})
     db.session.commit()
-    flash(f"{exam.code} {'archivado' if exam.archived else 'vuelve a estar activo'}.")
+    flash(f"{exam.code} {'archivado' if exam.archived else 'desarchivado'}.")
     return redirect(url_for("exams_admin.index"))
 
 

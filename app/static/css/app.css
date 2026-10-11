@@ -806,6 +806,18 @@ a.row:hover { background: var(--surface-hover); text-decoration: none; }
 .btn.plain.danger:hover { background: var(--red-soft); }
 .error ul { margin: var(--s-2) 0 0; padding-left: var(--s-5); }
 
+/* Selector de examen en la portada (#8): plegado por defecto. */
+.exam-picker { margin-bottom: var(--s-5); }
+.exam-picker summary {
+  cursor: pointer;
+  font-size: var(--fs-foot);
+  font-weight: 500;
+  color: var(--accent);
+  padding: var(--s-1) 0 var(--s-3);
+}
+.exam-picker .row form { display: contents; }
+.flash .chip { flex: none; white-space: nowrap; }
+
 /* ===========================================================================
    Importación de preguntas
    =========================================================================== */
