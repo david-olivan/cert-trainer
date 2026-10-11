@@ -11,7 +11,7 @@ from collections import Counter
 import pytest
 
 from app.extensions import db
-from app.models import Attempt, Domain, Exam, Question, QuestionFormat, StudySession
+from app.models import Attempt, Domain, Exam, FsrsParameters, Question, QuestionFormat, ReviewState, StudySession
 from app.sampling import weighted_sample
 
 PESOS = {1: 50, 2: 30, 3: 20}
@@ -58,6 +58,10 @@ def otro_examen(app):
             if session_ids:
                 Attempt.query.filter(Attempt.session_id.in_(session_ids)).delete(synchronize_session=False)
             StudySession.query.filter_by(exam_id=exam_id).delete()
+            question_ids = [q.id for q in Question.query.filter_by(exam_id=exam_id)]
+            if question_ids:
+                ReviewState.query.filter(ReviewState.question_id.in_(question_ids)).delete(synchronize_session=False)
+            FsrsParameters.query.filter_by(exam_id=exam_id).delete()
             Question.query.filter_by(exam_id=exam_id).delete()
             QuestionFormat.query.filter_by(exam_id=exam_id).delete()
             Domain.query.filter_by(exam_id=exam_id).delete()

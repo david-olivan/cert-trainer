@@ -14,6 +14,7 @@ from app.import_validation import question_to_short_format, validate_import
 from app.models import Attempt, Domain, Question, StudySession, User, utcnow
 from app.progress import reset_progress
 from app.sampling import weighted_sample
+from app.srs import rebuild as rebuild_review_states
 
 
 @click.group("questions")
@@ -270,6 +271,9 @@ def db_seed_demo(reset):
         study_session.score_pct = round(correct_count / len(questions) * 100)
 
     db.session.commit()
+    # Las respuestas sintéticas se insertan de golpe, no por /answer: el
+    # estado FSRS se calcula después, igual que en un arranque.
+    rebuild_review_states()
     click.echo(
         f"Demostración generada: {len(DEMO_SESSIONS)} sesiones y {total_attempts} "
         "intentos sintéticos. Bórralos con `flask db-reset-progress`."
@@ -298,8 +302,31 @@ def db_reset_progress(yes):
     click.echo(f"Borrados {removed['sessions']} sesiones y {removed['attempts']} intentos.")
 
 
+@click.group("fsrs")
+def fsrs_cli():
+    """Repetición espaciada: mantenimiento del estado FSRS."""
+
+
+@fsrs_cli.command("rebuild")
+@with_appcontext
+def fsrs_rebuild():
+    """Reconstruye el estado FSRS de cada pregunta a partir de las respuestas.
+
+    Idempotente: docker-start.sh lo lanza en cada arranque. Rellena la nota
+    y la predicción de las respuestas que no las tienen (las anteriores a
+    la repetición espaciada) y respeta las que ya están guardadas.
+    """
+    touched = rebuild_review_states()
+    click.echo(
+        f"Estado FSRS reconstruido: {touched['states']} preguntas con historial, "
+        f"{touched['ratings_filled']} notas calculadas por primera vez, "
+        f"{touched['states_removed']} estados sin respuestas eliminados."
+    )
+
+
 def register_cli(app):
     app.cli.add_command(questions_cli)
+    app.cli.add_command(fsrs_cli)
     app.cli.add_command(db_seed)
     app.cli.add_command(db_seed_demo)
     app.cli.add_command(db_reset_progress)

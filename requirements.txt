@@ -9,6 +9,9 @@ Flask-Migrate==4.1.0
 SQLAlchemy==2.0.54
 Werkzeug==3.1.8
 alembic==1.20.0
+# Repetición espaciada (#16). Sin el extra [optimizer]: necesita torch y
+# no cabe en la instancia gratuita de Render; va en requirements-optimizer.txt.
+fsrs==6.3.2
 gunicorn==26.2.0
 psycopg[binary]==3.3.6
 python-dotenv==1.2.3
