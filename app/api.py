@@ -7,6 +7,7 @@ red o el propio código. Cada respuesta se guarda en Attempt al vuelo
 (SPEC.md 1.3), no al terminar la tanda.
 """
 import random
+from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request, session
 from flask_login import current_user, login_required
@@ -15,6 +16,7 @@ from app.exams import current_exam
 from app.extensions import db
 from app.models import Attempt, Question, StudySession
 from app.sampling import build_queue
+from app.srs import review
 
 bp = Blueprint("api", __name__, url_prefix="/api/session")
 
@@ -165,7 +167,9 @@ def answer():
     correct_original = sorted(question.correct)
     is_correct = selected_original == correct_original and bool(selected_original)
 
+    now = datetime.now(timezone.utc)
     attempt = Attempt(
+        answered_at=now,
         question_id=question.id,
         session_id=state["study_session_id"],
         selected=selected_original,
@@ -177,6 +181,10 @@ def answer():
         recall_first=recall_first,
         seconds_to_reveal=seconds_to_reveal,
     )
+    # La respuesta es también una revisión FSRS (#16): el estado de la
+    # pregunta se actualiza en la misma transacción que guarda el intento,
+    # para que nunca quede uno sin el otro.
+    review(attempt, question, question.exam, now=now)
     db.session.add(attempt)
     db.session.commit()
 
@@ -246,8 +254,6 @@ def finish():
     per_domain_pct = {
         str(domain): round(v["correct"] / v["total"] * 100) for domain, v in per_domain.items() if v["total"]
     }
-
-    from datetime import datetime, timezone
 
     study_session.finished_at = datetime.now(timezone.utc)
     study_session.score_pct = pct

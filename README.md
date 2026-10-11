@@ -54,6 +54,16 @@ La semilla es fija, así que dos ejecuciones producen exactamente los mismos dat
 
 El mismo borrado está disponible desde la interfaz, en el botón «Reiniciar» de la barra superior.
 
+## Repetición espaciada
+
+Cada respuesta es una revisión FSRS: se traduce a una nota según el acierto, la confianza, la pista y el tiempo, y actualiza cuándo toca volver a ver la pregunta. El estado vive en `review_states` y se deriva entero de `attempts`, así que se puede rehacer en cualquier momento:
+
+```bash
+flask fsrs rebuild
+```
+
+Es idempotente y el arranque lo lanza siempre (`docker-start.sh` y `docker-entrypoint.sh`). La lógica y los umbrales están en `app/srs.py`.
+
 ## Pruebas
 
 ```bash

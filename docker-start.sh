@@ -15,6 +15,11 @@ flask db upgrade
 echo "==> Sembrando usuario y banco si hace falta"
 flask db-seed
 
+# Idempotente como los dos anteriores: rehace el estado de repetición
+# espaciada a partir de las respuestas guardadas (#16).
+echo "==> Reconstruyendo el estado FSRS"
+flask fsrs rebuild
+
 echo "==> Arrancando gunicorn"
 exec gunicorn \
   --bind "0.0.0.0:${PORT:-8000}" \

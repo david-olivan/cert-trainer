@@ -168,6 +168,57 @@ class Attempt(db.Model):
     # intentos anteriores.
     recall_first = db.Column(db.Boolean, nullable=True)
     seconds_to_reveal = db.Column(db.Integer, nullable=True)
+    # Repetición espaciada (issue #16). rating es la nota FSRS (1 Again,
+    # 2 Hard, 3 Good, 4 Easy) que se dedujo de la respuesta; predicted_r, la
+    # probabilidad de acierto que FSRS daba justo antes de responder. Nula
+    # si la pregunta no se había visto nunca: no había predicción que medir.
+    rating = db.Column(db.Integer, nullable=True)
+    predicted_r = db.Column(db.Float, nullable=True)
 
     question = db.relationship("Question", back_populates="attempts")
     session = db.relationship("StudySession", back_populates="attempts")
+
+
+class ReviewState(db.Model):
+    """Estado FSRS de una pregunta: cuándo toca repasarla y cuánto se recuerda.
+
+    Es derivable: `flask fsrs rebuild` lo reconstruye entero a partir de
+    Attempt, que es el registro de revisiones. Ver app/srs.py.
+    """
+
+    __tablename__ = "review_states"
+
+    id = db.Column(db.Integer, primary_key=True)
+    question_id = db.Column(
+        db.Integer, db.ForeignKey("questions.id", name="fk_review_states_question"), nullable=False, unique=True
+    )
+    state = db.Column(db.Integer, nullable=False)  # fsrs.State: 1 Learning, 2 Review, 3 Relearning
+    step = db.Column(db.Integer, nullable=True)
+    stability = db.Column(db.Float, nullable=True)
+    difficulty = db.Column(db.Float, nullable=True)
+    due = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
+    last_review = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    question = db.relationship("Question")
+
+
+class FsrsParameters(db.Model):
+    """Parámetros de FSRS de un examen, con su historial.
+
+    Una fila activa por examen. Las que deje el optimizador (#23) se
+    guardan aunque no se activen, con sus métricas, para comparar ajustes.
+    La retención deseada no vive aquí sino en Exam: es una decisión del
+    usuario, no un resultado del ajuste.
+    """
+
+    __tablename__ = "fsrs_parameters"
+
+    id = db.Column(db.Integer, primary_key=True)
+    exam_id = db.Column(db.Integer, db.ForeignKey("exams.id", name="fk_fsrs_parameters_exam"), nullable=False)
+    parameters = db.Column(db.JSON, nullable=False)  # los 21 pesos del modelo
+    rating_config = db.Column(db.JSON, nullable=False)  # umbrales para deducir la nota: ver app/srs.py
+    source = db.Column(db.String(20), nullable=False)  # "default" | "optimizer"
+    review_count = db.Column(db.Integer, nullable=False, default=0)  # revisiones con que se ajustó
+    metrics = db.Column(db.JSON, nullable=True)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)

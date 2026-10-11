@@ -5,5 +5,6 @@ set -e
 
 flask db upgrade
 flask db-seed
+flask fsrs rebuild
 
 exec "$@"
