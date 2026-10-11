@@ -7,7 +7,8 @@ reference/formato-preguntas.md.
 from dataclasses import dataclass, field
 
 from app.exams import current_exam
-from app.models import Question
+from app.extensions import db
+from app.models import Exam, Question
 
 REQUIRED_KEYS = {"id", "dom", "q", "o", "ok", "w"}
 
@@ -20,6 +21,42 @@ class ValidationResult:
 
 def _reject(rejected, identifier, reason):
     rejected.append((identifier, reason))
+
+
+class ImportPayloadError(ValueError):
+    """El bloque pegado no tiene una forma que se pueda importar."""
+
+
+def resolve_payload(data):
+    """(examen, lista de preguntas) a partir de lo que se pegó o se leyó del fichero.
+
+    Admite dos formas (reference/formato-preguntas.md):
+    - El array de preguntas tal cual: entran en el examen en curso.
+    - {"exam": "<código>", "questions": [...]}: entran en ese examen, que
+      es lo que produce el kit de generación (#20).
+    """
+    if isinstance(data, list):
+        return current_exam(), data
+    if isinstance(data, dict) and "questions" in data:
+        code = data.get("exam")
+        if not isinstance(code, str) or not code.strip():
+            raise ImportPayloadError(
+                "El bloque trae «questions» pero no dice a qué examen van: añade "
+                "\"exam\": \"<código>\" o pega solo el array de preguntas."
+            )
+        exam = Exam.query.filter(db.func.lower(Exam.code) == code.strip().lower()).first()
+        if exam is None:
+            raise ImportPayloadError(
+                f"No hay ningún examen con el código {code}. Créalo en «Exámenes» "
+                "o corrige el campo «exam» del bloque."
+            )
+        if not isinstance(data["questions"], list):
+            raise ImportPayloadError("El campo «questions» tiene que ser una lista de preguntas.")
+        return exam, data["questions"]
+    raise ImportPayloadError(
+        "No se reconoce el formato: pega un array de preguntas o un objeto "
+        "{\"exam\": \"<código>\", \"questions\": [...]}."
+    )
 
 
 def validate_import(raw_items, exam=None, existing_ext_ids=None):
