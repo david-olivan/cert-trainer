@@ -57,6 +57,7 @@
   {% if current_user.is_authenticated %}
     {# Lo que se usa poco va abajo, para dejar la barra de arriba despejada (#35). #}
     <footer class="foot" id="pie">
+      <a class="chip" href="{{ url_for('practice.metrics_view') }}">Métricas</a>
       <a class="chip" href="{{ url_for('questions_admin.index') }}">Preguntas</a>
       <form method="post" action="{{ url_for('practice.reset_progress_view') }}"
             onsubmit="return confirm('Se borrarán todas tus sesiones y respuestas. El banco de preguntas no se toca. Esta acción no se puede deshacer. ¿Continuar?')">

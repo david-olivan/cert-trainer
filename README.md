@@ -14,9 +14,10 @@ Entrenador personal para exámenes tipo test, hecho para preparar la certificaci
   - **Simulacro cronometrado**: todas las preguntas, a los minutos por pregunta del examen, sin explicaciones hasta el final.
   - **Tanda rápida** de diez preguntas.
   - **Por dominio**.
-- **Señales de cada respuesta**: «Comprobar · seguro» o «Comprobar · dudo», si se usó la pista, el tiempo y el orden de opciones mostrado. Alimentan la nota FSRS y las métricas futuras.
+- **Señales de cada respuesta**: «Comprobar · seguro» o «Comprobar · dudo», si se usó la pista, el tiempo y el orden de opciones mostrado. Alimentan la nota FSRS y las métricas.
 - **Modo «primero piensa»**: enunciado solo, y las opciones cuando se piden. No se aplica al simulacro.
-- **Medidor de preparación por dominio** en la portada, con el umbral orientativo del examen (72 % en AIB-C01). Es una estimación, nunca una predicción del resultado.
+- **Medidor de preparación por dominio** en la portada: probabilidad media de acierto según FSRS, con el acierto en primera vista para las preguntas aún no vistas, y el umbral orientativo del examen (72 % en AIB-C01). Es una estimación, nunca una predicción del resultado.
+- **Métricas** en `/metricas`: acierto en primera vista por dominio y habilidad, proyección al día del examen, fallos marcados como «seguro», tiempos y aciertos lentos, «primero piensa» frente a sin él, distractores más elegidos, preguntas que nunca se fallan, sesgo de posición, formatos frente a su proporción objetivo, respuestas por día y carga prevista frente a la hecha.
 - **Banco de preguntas** con importación (vista previa obligatoria y validación contra los dominios y formatos del examen) y exportación a JSON, desde `/preguntas` o por consola.
 
 Lo que falta y en qué orden está en [`SPEC.md`](SPEC.md) y en la épica [#12](https://github.com/david-olivan/cert-trainer/issues/12).

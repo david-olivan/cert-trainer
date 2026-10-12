@@ -922,6 +922,93 @@ code {
 }
 
 /* ===========================================================================
+   Métricas (#21): cifras destacadas, tablas, barras en HTML y preguntas
+   plegadas. Sin librería de gráficos: las barras son divs con --h, como
+   el medidor de la portada.
+   =========================================================================== */
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--s-3); }
+.tile {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tile-label { font-size: var(--fs-foot); color: var(--ink-2); }
+.tile-value { font-size: var(--fs-display); font-weight: 600; letter-spacing: -0.02em; color: var(--ink); }
+.tile-value.small { font-size: var(--fs-title); }
+.tile-sub { font-size: var(--fs-caption); color: var(--ink-3); line-height: 1.35; }
+.tiles.inline { grid-template-columns: repeat(3, 1fr); margin-bottom: var(--s-4); }
+.tiles.inline > div { display: flex; flex-direction: column; }
+
+.sub-title {
+  font-size: var(--fs-callout);
+  font-weight: 600;
+  color: var(--ink);
+  margin: var(--s-6) 0 var(--s-2) var(--s-4);
+}
+.nowrap { white-space: nowrap; }
+.note b { font-weight: 600; color: var(--ink); }
+
+.table-card { padding: var(--s-2) var(--s-4); overflow-x: auto; }
+table.data { width: 100%; border-collapse: collapse; font-size: var(--fs-callout); }
+table.data th {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-3);
+  text-align: left;
+  padding: var(--s-2) var(--s-2) var(--s-2) 0;
+}
+table.data td { padding: var(--s-2) var(--s-2) var(--s-2) 0; border-top: 0.5px solid var(--hairline); vertical-align: top; }
+table.data .num { text-align: right; white-space: nowrap; }
+table.data th:last-child, table.data td:last-child { padding-right: 0; }
+table.data .low { color: var(--red); font-weight: 600; }
+table.data tr.gap td:first-child { color: var(--ink-2); }
+table.data .note { display: block; font-size: var(--fs-caption); }
+
+details.fold { padding: var(--s-3) var(--s-4); margin-bottom: var(--s-2); }
+details.fold > summary { cursor: pointer; display: flex; align-items: baseline; gap: var(--s-2); }
+details.fold > summary .note { margin-left: auto; }
+details.fold[open] > summary { margin-bottom: var(--s-2); }
+
+.q-row { padding: var(--s-3) var(--s-4); }
+.q-details > summary { cursor: pointer; display: flex; align-items: baseline; gap: var(--s-2); list-style: none; }
+.q-details > summary::-webkit-details-marker { display: none; }
+.q-id { flex: none; font-size: var(--fs-caption); font-weight: 600; color: var(--accent); }
+.q-stem { flex: 1; min-width: 0; font-size: var(--fs-callout); color: var(--ink); }
+.q-meta { flex: none; font-size: var(--fs-foot); font-weight: 600; color: var(--ink-2); }
+.q-picked { margin-top: var(--s-1); }
+.q-body { margin-top: var(--s-3); font-size: var(--fs-callout); line-height: 1.45; }
+.q-body > * + * { margin-top: var(--s-2); }
+.q-options { padding-left: var(--s-5); }
+.q-options li { color: var(--ink-2); }
+.q-options li.ok { color: var(--green); font-weight: 600; }
+
+.bars { display: flex; align-items: stretch; gap: var(--s-2); height: 150px; }
+.bars.dense { gap: 2px; height: 110px; margin-top: var(--s-3); }
+.bars.paired { gap: var(--s-1); height: 120px; }
+.bar-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: var(--s-1); }
+.bar-track { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
+.bar {
+  width: 100%;
+  max-width: 24px;
+  height: var(--h);
+  min-height: 0;
+  background: var(--accent);
+  border-radius: 4px 4px 0 0;
+}
+.bars.paired .bar { max-width: 10px; }
+.bar.due { background: var(--ink-3); }
+.bar-val { font-size: var(--fs-caption); color: var(--ink-2); min-height: 1em; }
+.bar-cap { font-size: var(--fs-caption); color: var(--ink-3); white-space: nowrap; min-height: 1.2em; }
+.legend { display: flex; gap: var(--s-4); margin: var(--s-3) 0 var(--s-2); font-size: var(--fs-caption); color: var(--ink-2); }
+.legend .key { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--accent); vertical-align: -1px; }
+.legend .key.due { background: var(--ink-3); }
+
+/* ===========================================================================
    Móvil — el SPEC exige comprobar a 380px
    =========================================================================== */
 
@@ -940,6 +1027,9 @@ code {
   .field label { width: 78px; font-size: var(--fs-foot); }
   .fields.wide .field label { width: 112px; }
   .drow { grid-template-columns: 1fr 64px 40px; }
+  .bars { gap: var(--s-1); }
+  .bar-cap { font-size: 10px; }
+  .tiles.inline .tile-value.small { font-size: var(--fs-headline); }
 }
 
 @media (prefers-reduced-motion: reduce) {

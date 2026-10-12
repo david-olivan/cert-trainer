@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+{% block title %}Métricas · {{ exam.code }} — Entrenador{% endblock %}
+
+{% macro pct(rate) -%}
+  {{ "—" if rate.pct is none else rate.pct ~ " %" }}
+{%- endmacro %}
+
+{% macro plural(n, one, many) -%}
+  {{ n }} {{ one if n == 1 else many }}
+{%- endmacro %}
+
+{% macro question_details(q, extra="") %}
+  {# La pregunta entera, plegada: enunciado, opciones con la correcta marcada y explicación. #}
+  <details class="q-details">
+    <summary>
+      <span class="q-id tabular">{{ q.ext_id }}</span>
+      <span class="q-stem">{{ q.stem | truncate(110) }}</span>
+      {{ extra }}
+    </summary>
+    <div class="q-body">
+      <p>{{ q.stem }}</p>
+      <ol class="q-options">
+        {% for o in q.options %}
+          <li class="{{ 'ok' if loop.index0 in q.correct }}">{{ o }}</li>
+        {% endfor %}
+      </ol>
+      <p class="note">{{ q.explanation }}</p>
+    </div>
+  </details>
+{% endmacro %}
+
+{% block content %}
+  <div class="head">
+    <h1>Métricas</h1>
+    <p class="sub">{{ exam.code }} · {{ plural(data.answers, "respuesta", "respuestas") }} · {{ data.questions_seen }} de {{ data.bank }} preguntas vistas</p>
+  </div>
+
+  {% if not data.answers %}
+    <div class="card">
+      <p class="note">
+        Aún no hay respuestas en {{ exam.code }}. Haz una tanda desde la
+        <a href="{{ url_for('practice.home') }}">portada</a> y vuelve: las métricas salen de lo que respondes.
+      </p>
+    </div>
+  {% else %}
+  {% set r = data.readiness %}
+  {% set p = data.projection %}
+
+  {# ------------------------------------------------------------------ #}
+  <h2 class="section-title">Lo que sabes</h2>
+  <div class="tiles">
+    <div class="tile">
+      <span class="tile-label">Estimación de hoy</span>
+      <span class="tile-value tabular">{{ "—" if r.overall is none else r.overall ~ " %" }}</span>
+      <span class="tile-sub">probabilidad media de acierto en el banco</span>
+    </div>
+    <div class="tile">
+      <span class="tile-label">Acierto en primera vista</span>
+      <span class="tile-value tabular">{{ pct(data.first_sight.overall) }}</span>
+      <span class="tile-sub">en {{ plural(data.first_sight.overall.total, "pregunta", "preguntas") }} vistas por primera vez</span>
+    </div>
+    {% if p %}
+      <div class="tile">
+        <span class="tile-label">Proyección al examen</span>
+        <span class="tile-value tabular">{{ "—" if p.overall is none else p.overall ~ " %" }}</span>
+        <span class="tile-sub">el {{ p.date.strftime("%d/%m/%Y") }}, dentro de {{ plural(p.days, "día", "días") }}, sin repasar más</span>
+      </div>
+    {% endif %}
+  </div>
+  <p class="note inset" style="margin-top:var(--s-3)">
+    Son estimaciones, no predicciones de nota. La de hoy usa la probabilidad de FSRS para las preguntas
+    vistas y tu acierto en primera vista para las demás, ponderada por el peso de cada dominio. El acierto
+    en primera vista es el indicador más honesto: no lo infla haber memorizado la pregunta, y es lo que
+    pasará con las preguntas nuevas del examen real.
+    {% if p %}La proyección supone que no repasas nada más hasta el examen: es un suelo que cada repaso sube.{% endif %}
+    Umbral orientativo: {{ pass_threshold }} %.
+  </p>
+
+  <div class="card table-card" style="margin-top:var(--s-3)">
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Dominio</th>
+          <th class="num">Peso</th>
+          <th class="num">Vistas</th>
+          <th class="num">1.ª vista</th>
+          <th class="num">Hoy</th>
+          {% if p %}<th class="num">Examen</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in exam.domains %}
+          {% set fs = data.first_sight.by_domain[d.number] %}
+          <tr>
+            <td>{{ d.number }} · {{ d.short_name }}</td>
+            <td class="num tabular">{{ d.weight }} %</td>
+            <td class="num tabular">{{ r[d.number].seen }}/{{ r[d.number].total }}</td>
+            <td class="num tabular {{ 'low' if fs.pct is not none and fs.pct < pass_threshold }}">{{ pct(fs) }}</td>
+            <td class="num tabular {{ 'low' if r[d.number].pct is not none and r[d.number].pct < pass_threshold }}">{{ pct(r[d.number]) }}</td>
+            {% if p %}<td class="num tabular">{{ pct(p[d.number]) }}</td>{% endif %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% set rf = data.recall_first %}
+  <h2 class="section-title">Primero piensa</h2>
+  <div class="card table-card">
+    <table class="data">
+      <thead><tr><th>Modo</th><th class="num">Respuestas</th><th class="num">Acierto</th><th class="num">Mediana</th></tr></thead>
+      <tbody>
+        <tr><td>Con «primero piensa»</td><td class="num tabular">{{ rf[true].total }}</td><td class="num tabular">{{ pct(rf[true]) }}</td>
+            <td class="num tabular">{{ "—" if rf[true].median_seconds is none else rf[true].median_seconds ~ " s" }}</td></tr>
+        <tr><td>Sin él</td><td class="num tabular">{{ rf[false].total }}</td><td class="num tabular">{{ pct(rf[false]) }}</td>
+            <td class="num tabular">{{ "—" if rf[false].median_seconds is none else rf[false].median_seconds ~ " s" }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note inset" style="margin-top:var(--s-2)">
+    Recordar sin ver las opciones cuesta más y fija mejor. Si el acierto con el modo es mucho más bajo,
+    es que las opciones te estaban dando pistas.
+  </p>
+
+  <h2 class="section-title">Por habilidad</h2>
+  {% for block in data.skills %}
+    <details class="card fold">
+      <summary><b>{{ block.domain.number }} · {{ block.domain.short_name }}</b>
+        <span class="note">{{ plural(block.skills | length, "habilidad", "habilidades") }}{% if block.empty %} · {{ block.empty }} sin preguntas{% endif %}</span></summary>
+      {% if block.skills %}
+        <table class="data">
+          <thead><tr><th>Habilidad</th><th class="num">Banco</th><th class="num">Vistas</th><th class="num">1.ª vista</th></tr></thead>
+          <tbody>
+            {% for s in block.skills %}
+              <tr class="{{ 'gap' if not s.bank }}">
+                <td><span class="tabular">{{ s.code }}</span>{% if s.description %} <span class="note">{{ s.description }}</span>{% endif %}</td>
+                <td class="num tabular">{{ s.bank }}</td>
+                <td class="num tabular">{{ s.seen }}</td>
+                <td class="num tabular {{ 'low' if s.first_sight.pct is not none and s.first_sight.pct < pass_threshold }}">{{ pct(s.first_sight) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="note">Sin habilidades ni preguntas en este dominio.</p>
+      {% endif %}
+    </details>
+  {% endfor %}
+  <p class="note inset" style="margin-top:var(--s-2)">
+    Las habilidades sin preguntas en el banco son huecos que el
+    <a href="{{ url_for('exams_admin.generation_kit', exam_id=exam.id) }}">kit para generar preguntas</a> ya pide cubrir.
+  </p>
+
+  {# ------------------------------------------------------------------ #}
+  {% set sf = data.sure_failures %}
+  <h2 class="section-title">Fallos con «seguro» · {{ sf.total }}</h2>
+  {% if sf.questions %}
+    <div class="list">
+      {% for e in sf.questions %}
+        {% set extra %}<span class="q-meta tabular">{{ e.count }}×</span>{% endset %}
+        <div class="q-row">
+          {{ question_details(e.question, extra) }}
+          <p class="note q-picked">Elegiste: {{ e.picked | join(" · ") }}</p>
+        </div>
+      {% endfor %}
+    </div>
+    <p class="note inset" style="margin-top:var(--s-2)">
+      Respuestas falladas en las que marcaste «seguro»: errores de concepto, no despistes. Son lo más valioso
+      que repasar{% if sf.questions | length == 10 %}; aquí, las diez preguntas que más veces has fallado así{% endif %}.
+    </p>
+  {% else %}
+    <p class="note inset">Ningún fallo marcado como «seguro». Cuando falles algo con seguridad, aparecerá aquí.</p>
+  {% endif %}
+
+  {# ------------------------------------------------------------------ #}
+  {% set t = data.timing %}
+  <h2 class="section-title">Tiempo por pregunta</h2>
+  {% if t %}
+    <div class="card">
+      <div class="tiles inline">
+        <div><span class="tile-label">Mediana</span><span class="tile-value small tabular">{{ t.median }} s</span></div>
+        <div><span class="tile-label">Percentil 90</span><span class="tile-value small tabular">{{ t.p90 }} s</span></div>
+        <div><span class="tile-label">Más de {{ t.budget }} s</span><span class="tile-value small tabular">{{ pct(t.over_budget) }}</span></div>
+      </div>
+      <div class="bars" role="img" aria-label="Distribución de respuestas por segundos empleados">
+        {% for b in t.buckets %}
+          <div class="bar-col" title="{{ b.label }} s: {{ plural(b.count, 'respuesta', 'respuestas') }}">
+            <span class="bar-val tabular">{{ b.count or "" }}</span>
+            <div class="bar-track"><div class="bar" style="--h: {{ b.height }}%"></div></div>
+            <span class="bar-cap tabular">{{ b.label }}</span>
+          </div>
+        {% endfor %}
+      </div>
+      <p class="note" style="margin-top:var(--s-3)">
+        Segundos por respuesta. El examen da {{ t.budget }} s por pregunta. Tu tiempo de referencia es
+        {{ t.reference }} s: un acierto por encima de {{ t.slow_limit }} s cuenta como lento y FSRS lo
+        vuelve a programar antes.
+        Mediana por dominio:
+        {% for d in exam.domains -%}
+          <span class="nowrap">{{ d.short_name }} <b class="tabular">{{ "—" if t.per_domain[d.number] is none else t.per_domain[d.number] ~ " s" }}</b></span>{{ " · " if not loop.last }}
+        {%- endfor %}.
+      </p>
+    </div>
+    {% if t.slow %}
+      <h3 class="sub-title">Aciertos lentos · {{ t.slow_total }}</h3>
+      <div class="list">
+        {% for e in t.slow %}
+          {% set extra %}<span class="q-meta tabular">{{ e.count }}× · hasta {{ e.max }} s</span>{% endset %}
+          <div class="q-row">{{ question_details(e.question, extra) }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% else %}
+    <p class="note inset">Aún no hay respuestas con tiempo registrado.</p>
+  {% endif %}
+
+  {# ------------------------------------------------------------------ #}
+  <h2 class="section-title">El banco</h2>
+  <div class="card table-card">
+    <table class="data">
+      <thead><tr><th>Formato</th><th class="num">Preguntas</th><th class="num">En el banco</th><th class="num">Objetivo</th></tr></thead>
+      <tbody>
+        {% for f in data.formats %}
+          <tr>
+            <td>{{ f.options }} opciones, {{ plural(f.correct, "correcta", "correctas") }}</td>
+            <td class="num tabular">{{ f.count }}</td>
+            <td class="num tabular {{ 'low' if f.target is not none and f.pct is not none and f.pct < f.target - 2 }}">{{ "—" if f.pct is none else f.pct ~ " %" }}</td>
+            <td class="num tabular">{{ "—" if f.target is none else f.target ~ " %" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if data.position_bias %}
+    <h3 class="sub-title">Sesgo de posición</h3>
+    {% for g in data.position_bias %}
+      <div class="card table-card" style="margin-bottom:var(--s-3)">
+        <table class="data">
+          <thead>
+            <tr><th>{{ g.options }} opciones · {{ plural(g.answers, "respuesta", "respuestas") }}</th>
+              {% for pos in g.positions %}<th class="num">{{ pos.letter }}</th>{% endfor %}</tr>
+          </thead>
+          <tbody>
+            <tr><td>Eliges</td>{% for pos in g.positions %}
+              <td class="num tabular {{ 'low' if pos.chosen > g.expected + 10 }}">{{ pos.chosen }} %</td>{% endfor %}</tr>
+            <tr><td>Estaba la correcta</td>{% for pos in g.positions %}<td class="num tabular">{{ pos.correct }} %</td>{% endfor %}</tr>
+          </tbody>
+        </table>
+      </div>
+    {% endfor %}
+    <p class="note inset">
+      Las opciones se barajan en cada tanda, así que la correcta cae en cualquier posición por igual
+      (en torno a {{ data.position_bias[0].expected }} % con {{ data.position_bias[0].options }} opciones).
+      Si eliges una posición bastante más que las demás, la diferencia es tuya, no del banco.
+    </p>
+  {% endif %}
+
+  <h3 class="sub-title">Distractores más elegidos</h3>
+  {% if not data.distractors %}
+    <p class="note inset">Ninguna opción incorrecta elegida dos veces o más en la misma pregunta.</p>
+  {% else %}
+    <div class="list">
+      {% for e in data.distractors %}
+        {% set extra %}<span class="q-meta tabular">{{ e.count }} de {{ e.answered }}</span>{% endset %}
+        <div class="q-row">
+          {{ question_details(e.question, extra) }}
+          <p class="note q-picked">Atrae: {{ e.option }}</p>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <h3 class="sub-title">Nunca falladas · {{ data.never_failed | length }}</h3>
+  {% if data.never_failed %}
+    <div class="list">
+      {% for e in data.never_failed[:10] %}
+        {% set extra %}<span class="q-meta tabular">{{ e.answered }}×</span>{% endset %}
+        <div class="q-row">{{ question_details(e.question, extra) }}</div>
+      {% endfor %}
+    </div>
+    <p class="note inset" style="margin-top:var(--s-2)">
+      Respondidas al menos tres veces sin un solo fallo{% if data.never_failed | length > 10 %} (las diez más respondidas){% endif %}.
+      Puede que ya las domines o que sean demasiado fáciles: si sobran muchas, el banco pide preguntas más exigentes.
+    </p>
+  {% else %}
+    <p class="note inset">Ninguna pregunta respondida tres veces o más sin fallar.</p>
+  {% endif %}
+
+  {# ------------------------------------------------------------------ #}
+  {% set h = data.habit %}
+  <h2 class="section-title">Hábito</h2>
+  <div class="card">
+    <p class="note">Respuestas por día en las últimas cuatro semanas: {{ h.answers }} en {{ plural(h.active_days, "día", "días") }} de estudio.</p>
+    <div class="bars dense" role="img" aria-label="Respuestas por día">
+      {% for e in h.per_day %}
+        <div class="bar-col" title="{{ weekdays[e.day.weekday()] }} {{ e.day.strftime('%d/%m') }}: {{ e.repeat }} repasos y {{ e.new }} nuevas">
+          <div class="bar-track"><div class="bar" style="--h: {{ e.height }}%"></div></div>
+          <span class="bar-cap tabular">{{ e.day.day if loop.first or loop.last or e.day.weekday() == 0 else "" }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:var(--s-3)">
+    <p class="note">
+      Carga de las dos últimas semanas: vencían {{ h.load_due }} repasos y hiciste {{ h.load_done }}.
+    </p>
+    <div class="legend">
+      <span><i class="key due"></i> Vencían</span>
+      <span><i class="key"></i> Repasadas</span>
+    </div>
+    <div class="bars paired" role="img" aria-label="Repasos que vencían frente a repasos hechos, por día">
+      {% for e in h.load %}
+        <div class="bar-col" title="{{ weekdays[e.day.weekday()] }} {{ e.day.strftime('%d/%m') }}: vencían {{ e.due }}, repasaste {{ e.done }}">
+          <div class="bar-track">
+            <div class="bar due" style="--h: {{ e.due_height }}%"></div>
+            <div class="bar" style="--h: {{ e.done_height }}%"></div>
+          </div>
+          <span class="bar-cap tabular">{{ e.day.day if loop.first or loop.last or e.day.weekday() == 0 else "" }}</span>
+        </div>
+      {% endfor %}
+    </div>
+    <p class="note" style="margin-top:var(--s-3)">
+      «Vencían» rehace la historia con los parámetros de FSRS actuales: cuántas preguntas tocaba repasar
+      cada día. «Repasadas» cuenta las respuestas a preguntas ya vistas antes, sin las nuevas.
+    </p>
+  </div>
+  {% endif %}
+{% endblock %}
