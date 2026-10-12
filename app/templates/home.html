@@ -47,7 +47,7 @@
   <div class="card">
     <div class="meter">
       {% for domain in domains %}
-        {% set pct = readiness[domain.number] %}
+        {% set pct = readiness[domain.number].pct %}
         {% set cls = "" if pct is none else ("low" if pct < 60 else ("mid" if pct < pass_threshold else "")) %}
         <div class="col" style="--i: {{ loop.index0 }}">
           <div class="pct tabular">{{ "—" if pct is none else pct ~ " %" }}</div>
@@ -65,9 +65,11 @@
       {% endfor %}
     </div>
     <p class="note" style="margin-top:var(--s-4)">
-      Aciertos acumulados por dominio sobre todas tus respuestas. La línea discontinua marca el
-      {{ pass_threshold }} %, estimación orientativa del aprobado — el examen puntúa de 100 a 1000
-      y no publica el porcentaje de aciertos equivalente.
+      Probabilidad media de acertar hoy las preguntas de cada dominio, según FSRS; las que aún no has
+      visto cuentan con tu acierto en primera vista. Es una estimación, no una predicción de nota. La
+      línea discontinua marca el {{ pass_threshold }} %, umbral orientativo del aprobado — el examen
+      puntúa de 100 a 1000 y no publica el porcentaje de aciertos equivalente.
+      <a href="{{ url_for('practice.metrics_view') }}">Ver todas las métricas</a>
     </p>
   </div>
 

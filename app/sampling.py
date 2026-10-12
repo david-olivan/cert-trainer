@@ -5,8 +5,7 @@ Los dominios y sus pesos viven en la base de datos (tablas `exams` y
 """
 import random
 
-from app.extensions import db
-from app.models import Attempt, Domain, Question
+from app.models import Domain, Question
 
 
 def _active_questions_by_domain(exam):
@@ -76,18 +75,3 @@ def build_queue(exam, mode, domain=None):
 
     raise ValueError(f"Modo de práctica desconocido: {mode!r}")
 
-
-def domain_readiness(exam, domain):
-    """Porcentaje de aciertos acumulado en un dominio, o None si no hay intentos."""
-    rows = (
-        db.session.query(Attempt.is_correct)
-        .join(Question, Attempt.question_id == Question.id)
-        .join(Domain, Question.domain_id == Domain.id)
-        .filter(Question.exam_id == exam.id, Domain.number == domain)
-        .all()
-    )
-    if not rows:
-        return None
-    total = len(rows)
-    correct = sum(1 for (is_correct,) in rows if is_correct)
-    return round(correct / total * 100)

@@ -1,13 +1,13 @@
-"""Vistas de página: inicio, sesión de práctica, historial."""
+"""Vistas de página: inicio, sesión de práctica, métricas."""
 from flask import Blueprint, abort, flash, redirect, render_template, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
 
 from app.exams import SESSION_EXAM_KEY, NoExamError, active_exam, current_exam, session_exam
 from app.extensions import db
+from app.metrics import dashboard, readiness
 from app.models import Domain, Exam, Question, StudySession
 from app.progress import reset_progress
-from app.sampling import domain_readiness
 from app.srs import review_summary
 
 # Abreviaturas de los días para la previsión de la portada. strftime
@@ -22,7 +22,8 @@ bp = Blueprint("practice", __name__)
 def home():
     exam = current_exam()
     domains = exam.domains
-    readiness = {d.number: domain_readiness(exam, d.number) for d in domains}
+    # Medidor (#21): probabilidad de acierto de FSRS, no el acumulado histórico.
+    meter = readiness(exam)
     counts_by_number = dict(
         db.session.query(Domain.number, func.count(Question.id))
         .join(Question, Question.domain_id == Domain.id)
@@ -43,7 +44,7 @@ def home():
         "home.html",
         exam=exam,
         domains=domains,
-        readiness=readiness,
+        readiness=meter,
         question_counts=question_counts,
         total_questions=total_questions,
         review=review_summary(exam),
@@ -117,6 +118,19 @@ def toggle_recall_first():
     current_user.recall_first = not current_user.recall_first
     db.session.commit()
     return redirect(url_for("practice.home"))
+
+
+@bp.route("/metricas")
+@login_required
+def metrics_view():
+    exam = current_exam()
+    return render_template(
+        "metrics.html",
+        exam=exam,
+        data=dashboard(exam),
+        pass_threshold=exam.pass_threshold_pct,
+        weekdays=WEEKDAYS,
+    )
 
 
 @bp.route("/tanda")

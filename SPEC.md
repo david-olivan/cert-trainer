@@ -103,6 +103,8 @@ AIB-C01 sigue siendo la prioridad, porque la fecha límite real es el 15 de febr
   - Cobertura.
   - Distractores más elegidos y sesgo de posición.
   - Proyección al día del examen, siempre presentada como estimación.
+
+  Hecho en `/metricas` (`app/metrics.py`). El medidor mezcla las dos fuentes: probabilidad FSRS para las preguntas vistas y acierto en primera vista del dominio para las que no, porque una media solo de las vistas daría 95 % con una pregunta repasada. La proyección supone que no se repasa nada más: es un suelo. La carga prevista rehace la historia con los parámetros actuales, porque el vencimiento solo se guarda para el último repaso.
 - **Evaluación del algoritmo** (#22):
   - Calibración, log loss y RMSE de la predicción de FSRS.
   - `flask fsrs replay` para comparar parámetros y umbrales sobre el historial real.

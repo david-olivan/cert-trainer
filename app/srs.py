@@ -93,7 +93,8 @@ def scheduler_for(exam, params):
     )
 
 
-def _config(params):
+def rating_config(params):
+    """Los umbrales para deducir la nota, con los de fábrica para lo que falte."""
     return {**DEFAULT_RATING_CONFIG, **(params.rating_config or {})}
 
 
@@ -191,7 +192,7 @@ def review(attempt, question, exam, now=None):
     """
     now = utc(now or datetime.now(timezone.utc))
     params = active_parameters(exam)
-    config = _config(params)
+    config = rating_config(params)
     scheduler = scheduler_for(exam, params)
 
     state = ReviewState.query.filter_by(question_id=question.id).first()
@@ -228,7 +229,7 @@ def rebuild(exams=None, now=None):
 
     for exam in exams:
         params = active_parameters(exam)
-        config = _config(params)
+        config = rating_config(params)
         scheduler = scheduler_for(exam, params)
         reference = reference_seconds(exam, config)
 
@@ -350,6 +351,51 @@ def daily_review(exam, now=None):
         available = sum(len(pool) for pool in unseen_by_domain.values())
         new = weighted_sample(exam, min(remaining_new, available), pool_by_domain=unseen_by_domain)
     return due, new
+
+
+def retrievability(exam, when=None):
+    """Probabilidad de acierto de cada pregunta activa ya vista, en `when` (por defecto, ahora).
+
+    {question_id: R}. Las nunca vistas no salen: FSRS no sabe nada de ellas.
+    """
+    when = utc(when or datetime.now(timezone.utc))
+    scheduler = scheduler_for(exam, active_parameters(exam))
+    return {
+        s.question_id: scheduler.get_card_retrievability(_card_from(s, s.question_id), when)
+        for s in _states_of_active_questions(exam)
+    }
+
+
+def scheduled_dues(exam):
+    """Para qué fecha quedó programado el repaso tras cada respuesta del examen.
+
+    Rehace la historia como rebuild(), con los parámetros activos y sin
+    escribir nada. Sirve para comparar la carga prevista con la hecha (#21):
+    el vencimiento de cada pregunta solo se guarda para el último repaso.
+    """
+    params = active_parameters(exam)
+    config = rating_config(params)
+    scheduler = scheduler_for(exam, params)
+    reference = reference_seconds(exam, config)
+    attempts = (
+        Attempt.query.join(Question, Attempt.question_id == Question.id)
+        .filter(Question.exam_id == exam.id)
+        .order_by(Attempt.question_id, Attempt.answered_at, Attempt.id)
+        .all()
+    )
+    cards = {}
+    dues = []
+    for attempt in attempts:
+        when = utc(attempt.answered_at)
+        card = cards.get(attempt.question_id) or Card(card_id=attempt.question_id, due=when)
+        rating = attempt.rating or int(rating_for(
+            attempt.is_correct, attempt.confidence, attempt.hint_used, attempt.seconds_spent, reference, config,
+        ))
+        card, _log = scheduler.review_card(card, Rating(rating), when, _duration_ms(attempt.seconds_spent))
+        cap_due(card, exam, when)
+        cards[attempt.question_id] = card
+        dues.append(utc(card.due))
+    return dues
 
 
 def review_summary(exam, now=None):
