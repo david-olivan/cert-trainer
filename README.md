@@ -65,6 +65,18 @@ flask fsrs rebuild
 
 Es idempotente y el arranque lo lanza siempre (`docker-start.sh` y `docker-entrypoint.sh`). La lógica y los umbrales están en `app/srs.py`.
 
+Para saber si FSRS acierta cuando predice, y probar otra configuración antes de cambiarla, se repite el historial sin escribir nada:
+
+```bash
+flask fsrs replay                                  # métricas de la configuración vigente
+flask fsrs replay --params pesos.json              # otros pesos: la lista de 21 o {"parameters": [...]}
+flask fsrs replay --desired-retention 0.85         # otra retención: cambia la carga, no las predicciones
+flask fsrs replay --slow-factor 2 --fast-factor 0.4  # otros umbrales de nota
+flask fsrs replay --exam AIB-C01                   # otro examen que el activo
+```
+
+Compara log loss (con el de predecir siempre la media como referencia), RMSE por tramos, acierto predicho y real, la carga a 7 y 30 días y la curva de calibración. Las revisiones a menos de un día de la anterior no cuentan: ahí FSRS siempre predice el 100 %. Las mismas cifras de la configuración activa salen en «El algoritmo», en `/metricas`. El cálculo está en `app/evaluation.py`.
+
 ### Pruebas
 
 ```bash
@@ -129,7 +141,9 @@ SPEC.md                       qué construir, por fases, y deuda técnica conoci
 app/                          la aplicación Flask
   models.py                   exámenes, dominios, formatos, preguntas, intentos, estado FSRS
   srs.py                      repetición espaciada (FSRS) y repaso de hoy
-  sampling.py                 muestreo ponderado por dominio y medidor de preparación
+  sampling.py                 muestreo ponderado por dominio
+  metrics.py                  panel de métricas y medidor de preparación
+  evaluation.py               evaluación de FSRS: calibración, log loss y repetición del historial
   import_validation.py        validador único de la importación (web y consola)
   cli.py                      comandos flask: questions, db-seed, db-seed-demo, db-reset-progress, fsrs
   templates/                  plantillas Jinja

@@ -288,6 +288,61 @@
   {% endif %}
 
   {# ------------------------------------------------------------------ #}
+  {% set alg = data.algorithm %}
+  {% set m = alg.metrics %}
+  <h2 class="section-title">El algoritmo</h2>
+  {% if m %}
+    <div class="tiles">
+      <div class="tile">
+        <span class="tile-label">Log loss</span>
+        <span class="tile-value small tabular">{{ "%.3f" | format(m.log_loss) }}</span>
+        <span class="tile-sub">{{ "mejor" if m.log_loss < m.baseline_log_loss else "peor" }} que el {{ "%.3f" | format(m.baseline_log_loss) }} de predecir siempre tu media</span>
+      </div>
+      <div class="tile">
+        <span class="tile-label">RMSE por tramos</span>
+        <span class="tile-value small tabular">{{ "%.1f" | format(m.rmse_bins * 100) }} %</span>
+        <span class="tile-sub">distancia media entre lo predicho y lo real</span>
+      </div>
+      <div class="tile">
+        <span class="tile-label">Retención real</span>
+        <span class="tile-value small tabular">{{ "%.0f" | format(m.actual * 100) }} %</span>
+        <span class="tile-sub">deseada {{ "%.0f" | format(alg.desired_retention * 100) }} % · predicha {{ "%.0f" | format(m.predicted * 100) }} %</span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:var(--s-3)">
+      <p class="note">Calibración: en cada tramo de predicción, lo que FSRS esperaba frente a lo que acertaste.</p>
+      <div class="legend">
+        <span><i class="key due"></i> Predicho</span>
+        <span><i class="key"></i> Real</span>
+      </div>
+      <div class="bars paired" role="img" aria-label="Acierto predicho frente a real por tramo de predicción">
+        {% for c in m.calibration %}
+          <div class="bar-col" title="{{ c.low }}–{{ c.high }} %: {{ plural(c.count, 'revisión', 'revisiones') }}, predicho {{ c.predicted_height }} %, real {{ c.actual_height }} %">
+            <div class="bar-track">
+              <div class="bar due" style="--h: {{ c.predicted_height }}%"></div>
+              <div class="bar" style="--h: {{ c.actual_height }}%"></div>
+            </div>
+            <span class="bar-cap tabular">{{ c.low }}–{{ c.high }}</span>
+            <span class="bar-cap tabular">{{ c.count }} rev.</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    <p class="note inset" style="margin-top:var(--s-3)">
+      {{ plural(m.reviews, "revisión evaluada", "revisiones evaluadas") }}{% if alg.same_day %}; no cuentan {{ alg.same_day }} a menos de un día de la anterior, donde FSRS siempre predice el 100 %{% endif %}.
+      {% if not m.reliable %}Con menos de cien, las cifras oscilan mucho: tómalas como orientación.{% endif %}
+      Bien calibrado, cada par de barras mide lo mismo y el log loss queda por debajo del ingenuo.
+      Parámetros {{ "de fábrica" if alg.source == "default" else "ajustados por el optimizador con " ~ alg.fitted_on ~ " revisiones" }}.
+      Para probar otros: <code>flask fsrs replay</code>.
+    </p>
+  {% else %}
+    <p class="note inset">
+      Aún no hay revisiones que evaluar: hace falta volver a responder una pregunta al menos un día después de verla.
+    </p>
+  {% endif %}
+
+  {# ------------------------------------------------------------------ #}
   {% set h = data.habit %}
   <h2 class="section-title">Hábito</h2>
   <div class="card">

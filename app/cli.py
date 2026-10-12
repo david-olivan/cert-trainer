@@ -1,5 +1,5 @@
 """Comandos de consola: `flask questions import/export`, `flask db-seed`,
-`flask db-seed-demo` y `flask db-reset-progress`."""
+`flask db-seed-demo`, `flask db-reset-progress` y `flask fsrs rebuild/replay`."""
 import json
 import random
 from datetime import timedelta
@@ -9,9 +9,10 @@ from flask import current_app
 from flask.cli import with_appcontext
 
 from app.exams import current_exam
+from app.evaluation import ReplayConfigError, load_parameters, replay
 from app.extensions import db
 from app.import_validation import ImportPayloadError, question_to_short_format, resolve_payload, validate_import
-from app.models import Attempt, Domain, Question, ReviewState, StudySession, User, utcnow
+from app.models import Attempt, Domain, Exam, Question, ReviewState, StudySession, User, utcnow
 from app.progress import reset_progress
 from app.sampling import weighted_sample
 from app.srs import rebuild as rebuild_review_states
@@ -332,6 +333,86 @@ def fsrs_rebuild():
         f"{touched['ratings_filled']} notas calculadas por primera vez, "
         f"{touched['states_removed']} estados sin respuestas eliminados."
     )
+
+
+def _replay_table(columns):
+    """Las métricas de cada configuración, una columna por configuración."""
+    def fmt(value, kind):
+        if value is None:
+            return "—"
+        if kind == "pct":
+            return f"{value * 100:.1f} %"
+        if kind == "num":
+            return f"{value:.4f}"
+        return str(value)
+
+    rows = [
+        ("Revisiones evaluadas", lambda r: r["metrics"] and r["metrics"]["reviews"], "int"),
+        ("Log loss", lambda r: r["metrics"] and r["metrics"]["log_loss"], "num"),
+        ("Log loss ingenuo", lambda r: r["metrics"] and r["metrics"]["baseline_log_loss"], "num"),
+        ("RMSE por tramos", lambda r: r["metrics"] and r["metrics"]["rmse_bins"], "pct"),
+        ("Acierto predicho", lambda r: r["metrics"] and r["metrics"]["predicted"], "pct"),
+        ("Acierto real", lambda r: r["metrics"] and r["metrics"]["actual"], "pct"),
+        ("Retención deseada", lambda r: r["desired_retention"], "pct"),
+        ("Pendientes a 7 días", lambda r: r["due"][7], "int"),
+        ("Pendientes a 30 días", lambda r: r["due"][30], "int"),
+    ]
+    width = max(len(label) for label, _f, _k in rows) + 2
+    lines = [" " * width + "".join(f"{name:>14}" for name, _r in columns)]
+    for label, get, kind in rows:
+        lines.append(f"{label:<{width}}" + "".join(f"{fmt(get(r), kind):>14}" for _n, r in columns))
+    return "\n".join(lines)
+
+
+@fsrs_cli.command("replay")
+@click.option("--exam", "exam_code", help="Código del examen. Por defecto, el activo.")
+@click.option("--params", "params_file", type=click.Path(exists=True, dir_okay=False),
+              help="JSON con los pesos de FSRS: la lista o {\"parameters\": [...]}.")
+@click.option("--desired-retention", type=float, help="Retención deseada, entre 0.70 y 0.97.")
+@click.option("--slow-factor", type=float, help="Un acierto más lento que esto por la referencia es Hard.")
+@click.option("--fast-factor", type=float, help="Un acierto seguro más rápido que esto por la referencia es Easy.")
+@with_appcontext
+def fsrs_replay(exam_code, params_file, desired_retention, slow_factor, fast_factor):
+    """Repite el historial con otra configuración y compara sus métricas con la vigente.
+
+    No escribe nada en la base. Sin opciones, muestra solo la vigente.
+    """
+    if exam_code:
+        exam = Exam.query.filter(db.func.upper(Exam.code) == exam_code.upper()).first()
+        if exam is None:
+            raise click.ClickException(f"No hay ningún examen con el código {exam_code}.")
+    else:
+        exam = current_exam()
+
+    overrides = {k: v for k, v in (("slow_factor", slow_factor), ("fast_factor", fast_factor)) if v is not None}
+    try:
+        parameters = None
+        if params_file:
+            with open(params_file, encoding="utf-8") as fh:
+                parameters = load_parameters(json.load(fh))
+        current = replay(exam)
+        columns = [("Vigente", current)]
+        if parameters is not None or desired_retention is not None or overrides:
+            columns.append(("Propuesta", replay(exam, parameters, desired_retention, overrides or None)))
+    except json.JSONDecodeError as exc:
+        raise click.ClickException(f"{params_file} no es un JSON válido: {exc}") from exc
+    except ReplayConfigError as exc:
+        raise click.ClickException(str(exc)) from exc
+    finally:
+        # active_parameters() puede crear la fila de fábrica: no se guarda nada.
+        db.session.rollback()
+
+    click.echo(f"{exam.code}: {current['answers']} respuestas a {current['first_seen']} preguntas; "
+               f"{current['same_day']} repeticiones a menos de un día no cuentan.")
+    click.echo(_replay_table(columns))
+    if current["metrics"] and not current["metrics"]["reliable"]:
+        click.echo("Pocas revisiones todavía: las diferencias pequeñas entre configuraciones son ruido.")
+    for name, result in columns:
+        if result["metrics"]:
+            click.echo(f"\nCalibración · {name} (tramo de predicción: revisiones, predicho → real)")
+            for c in result["metrics"]["calibration"]:
+                click.echo(f"  {c['low']:>3}-{c['high']:<3} %  {c['count']:>5}   "
+                           f"{c['predicted'] * 100:5.1f} % → {c['actual'] * 100:5.1f} %")
 
 
 def register_cli(app):

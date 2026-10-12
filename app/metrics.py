@@ -12,6 +12,7 @@ from datetime import datetime, time, timedelta, timezone
 from statistics import median
 
 from app import srs
+from app.evaluation import replay
 from app.extensions import db
 from app.kit import coverage
 from app.models import Attempt, Question
@@ -386,6 +387,17 @@ def _habit(exam, rows, now):
     }
 
 
+def _algorithm(exam, now):
+    """Cómo de bien predice FSRS con la configuración activa (#22)."""
+    result = replay(exam, now=now)
+    params = srs.active_parameters(exam)
+    calibration = (result["metrics"] or {}).get("calibration", [])
+    for c in calibration:
+        c["predicted_height"] = round(c["predicted"] * 100)
+        c["actual_height"] = round(c["actual"] * 100)
+    return {**result, "source": params.source, "fitted_on": params.review_count}
+
+
 def dashboard(exam, now=None):
     """Todo lo que pinta la página de métricas de `exam`."""
     now = srs.utc(now or datetime.now(timezone.utc))
@@ -412,5 +424,6 @@ def dashboard(exam, now=None):
         never_failed=_never_failed(rows),
         position_bias=_position_bias(rows),
         habit=_habit(exam, rows, now),
+        algorithm=_algorithm(exam, now),
     )
     return data
