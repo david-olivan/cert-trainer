@@ -108,6 +108,8 @@ AIB-C01 sigue siendo la prioridad, porque la fecha límite real es el 15 de febr
 - **Evaluación del algoritmo** (#22):
   - Calibración, log loss y RMSE de la predicción de FSRS.
   - `flask fsrs replay` para comparar parámetros y umbrales sobre el historial real.
+
+  Hecho en `app/evaluation.py`, con sección «El algoritmo» en `/metricas`. La configuración vigente se evalúa repitiendo el historial igual que las alternativas, para que las cifras sean comparables, en vez de leer el `predicted_r` guardado. Las revisiones a menos de un día de la anterior se apartan, porque FSRS cuenta días enteros y ahí predice siempre el 100 %. El log loss se acompaña del de predecir siempre la tasa media: si FSRS no lo mejora, no aporta. La retención deseada no cambia las predicciones, solo la carga; por eso `replay` da también los pendientes a 7 y 30 días.
 - **Optimizador** (#23): el workflow semanal o manual descrito arriba.
 
 ### Sueltas, cuando apetezca

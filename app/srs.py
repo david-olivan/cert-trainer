@@ -76,9 +76,14 @@ def active_parameters(exam):
 
 
 def scheduler_for(exam, params):
+    return make_scheduler(params.parameters, exam.desired_retention)
+
+
+def make_scheduler(parameters, desired_retention):
+    """El planificador con que trabaja la aplicación, para unos pesos y una retención dados."""
     return Scheduler(
-        parameters=params.parameters,
-        desired_retention=exam.desired_retention,
+        parameters=parameters,
+        desired_retention=desired_retention,
         # Sin pasos de aprendizaje (por defecto, 1 y 10 minutos): sirven para
         # repetir una tarjeta varias veces en la misma sesión, y aquí una
         # tanda no repite preguntas y se estudia por días. Con ellos, cada
